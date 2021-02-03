@@ -41,12 +41,7 @@ public class PullRequestStoreImpl implements PullRequestStore {
                 pullRequest.getToRef().getRepository().getProject().getKey(),
                 pullRequest.getToRef().getRepository().getSlug(), serverId);
 
-        Optional.ofNullable(pullRequests.get(cacheKey)).ifPresent(value -> {
-            if (value.contains(pullRequest)) {
-                value.remove(pullRequest);
-            }
-        }
-        );
+        Optional.ofNullable(pullRequests.get(cacheKey)).ifPresent(value -> value.remove(pullRequest));
     }
 
     @Override
