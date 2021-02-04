@@ -81,13 +81,13 @@ public class BitbucketScmFormFillDelegate implements BitbucketScmFormFill {
                 .includeEmptyValue()
                 .includeMatchingAs(
                         ACL.SYSTEM,
-                        jenkinsProvider.get(),
+                        context,
                         StringCredentials.class,
                         URIRequirementBuilder.fromUri(baseUrl).build(),
                         CredentialsMatchers.always())
                 .includeMatchingAs(
                         ACL.SYSTEM,
-                        jenkinsProvider.get(),
+                        context,
                         StandardUsernamePasswordCredentials.class,
                         URIRequirementBuilder.fromUri(baseUrl).build(),
                         CredentialsMatchers.always());
@@ -101,7 +101,7 @@ public class BitbucketScmFormFillDelegate implements BitbucketScmFormFill {
                 .includeEmptyValue()
                 .includeMatchingAs(
                         ACL.SYSTEM,
-                        jenkinsProvider.get(),
+                        context,
                         BasicSSHUserPrivateKey.class,
                         URIRequirementBuilder.fromUri(baseUrl).build(),
                         CredentialsMatchers.always());
