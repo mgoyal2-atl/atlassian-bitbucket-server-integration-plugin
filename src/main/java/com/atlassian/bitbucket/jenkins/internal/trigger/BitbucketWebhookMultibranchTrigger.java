@@ -16,15 +16,27 @@ import java.util.logging.Logger;
 public class BitbucketWebhookMultibranchTrigger extends Trigger<MultiBranchProject<?, ?>> {
 
     private static final Logger LOGGER = Logger.getLogger(BitbucketWebhookMultibranchTrigger.class.getName());
+    private final boolean refTrigger;
+    private final boolean pullRequestTrigger;
 
     @SuppressWarnings("RedundantNoArgConstructor") // Required for Stapler
     @DataBoundConstructor
-    public BitbucketWebhookMultibranchTrigger() {
+    public BitbucketWebhookMultibranchTrigger(boolean refTrigger, boolean pullRequestTrigger) {
+        this.refTrigger = refTrigger;
+        this.pullRequestTrigger = pullRequestTrigger;
     }
 
     @Override
     public BitbucketWebhookMultibranchTrigger.DescriptorImpl getDescriptor() {
         return (BitbucketWebhookMultibranchTrigger.DescriptorImpl) super.getDescriptor();
+    }
+
+    public boolean isPullRequestTrigger() {
+        return pullRequestTrigger;
+    }
+
+    public boolean isRefTrigger() {
+        return refTrigger;
     }
 
     @Symbol("BitbucketWebhookMultibranchTriggerImpl")
@@ -56,6 +68,5 @@ public class BitbucketWebhookMultibranchTrigger extends Trigger<MultiBranchProje
         public boolean isApplicable(Item item) {
             return item instanceof MultiBranchProject;
         }
-
     }
 }

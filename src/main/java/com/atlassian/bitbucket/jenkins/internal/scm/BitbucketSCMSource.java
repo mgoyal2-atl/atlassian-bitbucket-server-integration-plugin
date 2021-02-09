@@ -13,7 +13,6 @@ import com.atlassian.bitbucket.jenkins.internal.model.BitbucketNamedLink;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketProject;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketPullRequest;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRepository;
-import com.atlassian.bitbucket.jenkins.internal.trigger.BitbucketWebhookMultibranchPRTrigger;
 import com.atlassian.bitbucket.jenkins.internal.trigger.BitbucketWebhookMultibranchTrigger;
 import com.atlassian.bitbucket.jenkins.internal.trigger.RetryingWebhookHandler;
 import com.atlassian.bitbucket.jenkins.internal.trigger.register.PullRequestStore;
@@ -160,14 +159,11 @@ public class BitbucketSCMSource extends SCMSource {
                 BitbucketServerConfiguration bitbucketServerConfiguration = descriptor.getConfiguration(getServerId())
                         .orElseThrow(() -> new BitbucketClientException(
                                 "Server config not found for input server id " + getServerId()));
-                boolean containsPushTrigger = project.getTriggers()
-                        .keySet()
-                        .stream()
-                        .anyMatch(BitbucketWebhookMultibranchTrigger.DescriptorImpl.class::isInstance);
-                boolean containsPRTrigger = project.getTriggers()
-                        .keySet()
-                        .stream()
-                        .anyMatch(BitbucketWebhookMultibranchPRTrigger.DescriptorImpl.class::isInstance);
+                List<BitbucketWebhookMultibranchTrigger> triggers =
+                        new ArrayList<BitbucketWebhookMultibranchTrigger>(project.getTriggers().values());
+                Boolean containsPushTrigger = triggers.stream().anyMatch(trigger -> trigger.isRefTrigger());
+                Boolean containsPRTrigger = triggers.stream().anyMatch(trigger -> trigger.isPullRequestTrigger());
+
                 descriptor.getRetryingWebhookHandler().register(
                         bitbucketServerConfiguration.getBaseUrl(),
                         bitbucketServerConfiguration.getGlobalCredentialsProvider(owner),
