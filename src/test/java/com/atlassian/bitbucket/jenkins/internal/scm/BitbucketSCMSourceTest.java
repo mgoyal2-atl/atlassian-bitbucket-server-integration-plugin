@@ -5,7 +5,6 @@ import com.atlassian.bitbucket.jenkins.internal.credentials.GlobalCredentialsPro
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketNamedLink;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketProject;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRepository;
-import com.atlassian.bitbucket.jenkins.internal.trigger.BitbucketWebhookMultibranchPRTrigger;
 import com.atlassian.bitbucket.jenkins.internal.trigger.BitbucketWebhookMultibranchTrigger;
 import com.atlassian.bitbucket.jenkins.internal.trigger.RetryingWebhookHandler;
 import hudson.plugins.git.GitSCM;
@@ -157,6 +156,8 @@ public class BitbucketSCMSourceTest {
                 mock(BitbucketWebhookMultibranchTrigger.DescriptorImpl.class);
         BitbucketWebhookMultibranchTrigger trigger =
                 mock(BitbucketWebhookMultibranchTrigger.class);
+        doReturn(true).when(trigger).isRefTrigger();
+        doReturn(false).when(trigger).isPullRequestTrigger();
         MultiBranchProject<?, ?> owner = mock(MultiBranchProject.class);
         bitbucketSCMSource.setOwner(owner);
         doReturn(Collections.singletonMap(triggerDesc, trigger)).when(owner).getTriggers();
@@ -174,10 +175,12 @@ public class BitbucketSCMSourceTest {
         String serverId = "server-id";
         String baseUrl = "http://example.com";
         BitbucketSCMSource bitbucketSCMSource = spy(createInstance(credentialsId, serverId));
-        BitbucketWebhookMultibranchPRTrigger.DescriptorImpl triggerDesc =
-                mock(BitbucketWebhookMultibranchPRTrigger.DescriptorImpl.class);
-        BitbucketWebhookMultibranchPRTrigger trigger =
-                mock(BitbucketWebhookMultibranchPRTrigger.class);
+        BitbucketWebhookMultibranchTrigger.DescriptorImpl triggerDesc =
+                mock(BitbucketWebhookMultibranchTrigger.DescriptorImpl.class);
+        BitbucketWebhookMultibranchTrigger trigger =
+                mock(BitbucketWebhookMultibranchTrigger.class);
+        doReturn(false).when(trigger).isRefTrigger();
+        doReturn(true).when(trigger).isPullRequestTrigger();
         MultiBranchProject<?, ?> owner = mock(MultiBranchProject.class);
         bitbucketSCMSource.setOwner(owner);
         doReturn(Collections.singletonMap(triggerDesc, trigger)).when(owner).getTriggers();

@@ -6,9 +6,12 @@ import hudson.Extension;
 import hudson.model.Item;
 import hudson.triggers.Trigger;
 import hudson.triggers.TriggerDescriptor;
+import hudson.util.FormValidation;
 import jenkins.branch.MultiBranchProject;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.verb.POST;
 
 import javax.inject.Inject;
 import java.util.logging.Logger;
@@ -39,7 +42,7 @@ public class BitbucketWebhookMultibranchTrigger extends Trigger<MultiBranchProje
         return refTrigger;
     }
 
-    @Symbol("BitbucketWebhookMultibranchTriggerImpl")
+    @Symbol("BbsTrigger")
     @Extension
     public static class DescriptorImpl extends TriggerDescriptor {
 
@@ -67,6 +70,20 @@ public class BitbucketWebhookMultibranchTrigger extends Trigger<MultiBranchProje
         @Override
         public boolean isApplicable(Item item) {
             return item instanceof MultiBranchProject;
+        }
+
+        @SuppressWarnings({"MethodMayBeStatic", "unused"})
+        @POST
+        public FormValidation doCheckRefTrigger(@QueryParameter boolean value, @QueryParameter boolean pullRequestTrigger) {
+            return checkRefTrigger(value, pullRequestTrigger);
+        }
+
+        private static FormValidation checkRefTrigger(boolean refTriggerFromForm, boolean pullRequestTriggerFromForm) {
+            if (!refTriggerFromForm && !pullRequestTriggerFromForm) {
+                return FormValidation.error("Select at least one event.");
+            } else {
+                return FormValidation.ok();
+            }
         }
     }
 }
