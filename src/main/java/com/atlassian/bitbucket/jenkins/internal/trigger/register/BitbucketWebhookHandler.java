@@ -3,7 +3,6 @@ package com.atlassian.bitbucket.jenkins.internal.trigger.register;
 import com.atlassian.bitbucket.jenkins.internal.client.BitbucketCapabilitiesClient;
 import com.atlassian.bitbucket.jenkins.internal.client.BitbucketWebhookClient;
 import com.atlassian.bitbucket.jenkins.internal.client.exception.BitbucketMissingCapabilityException;
-import com.atlassian.bitbucket.jenkins.internal.client.exception.WebhookNotSupportedException;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketWebhook;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketWebhookRequest;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketWebhookSupportedEvents;
@@ -134,9 +133,6 @@ public class BitbucketWebhookHandler implements WebhookHandler {
                 supportedEvents.add(PULL_REQUEST_OPENED_EVENT);
             }
         }
-        if (supportedEvents.isEmpty()) {
-            throw new WebhookNotSupportedException("Remote server does not support the required events.");
-        }
         return supportedEvents;
     }
 
@@ -196,6 +192,11 @@ public class BitbucketWebhookHandler implements WebhookHandler {
             BitbucketWebhook result = webhookClient.registerWebhook(webhook);
             LOGGER.info("New Webhook registered - " + result);
             return result;
+        }
+
+        //If wanted webhook has no events, do nothing
+        if (events.isEmpty()) {
+            return null;
         }
 
         BitbucketWebhook mirrorSyncResult =
