@@ -154,6 +154,7 @@ public class BitbucketWebhookHandler implements WebhookHandler {
      * @param request the input request, collection of events
      * @return the correct registered/updated bitbucket webhook
      */
+    @Nullable
     private BitbucketWebhook process(WebhookRegisterRequest request,
                                      Collection<BitbucketWebhookEvent> events) {
         String callback = constructCallbackUrl(request);
