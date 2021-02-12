@@ -55,8 +55,12 @@ public class BitbucketWebhookHandler implements WebhookHandler {
     }
 
     @Override
+    @Nullable
     public BitbucketWebhook register(WebhookRegisterRequest request) {
         Collection<BitbucketWebhookEvent> events = getEvents(request);
+        if (events.isEmpty()) {
+            return null;
+        }
         return process(request, events);
     }
 
@@ -193,11 +197,6 @@ public class BitbucketWebhookHandler implements WebhookHandler {
             BitbucketWebhook result = webhookClient.registerWebhook(webhook);
             LOGGER.info("New Webhook registered - " + result);
             return result;
-        }
-
-        //If wanted webhook has no events, do nothing
-        if (events.isEmpty()) {
-            return null;
         }
 
         BitbucketWebhook mirrorSyncResult =

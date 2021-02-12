@@ -164,6 +164,8 @@ public class BitbucketSCMSource extends SCMSource {
                 Boolean containsPushTrigger = triggers.stream().anyMatch(trigger -> trigger.isRefTrigger());
                 Boolean containsPRTrigger = triggers.stream().anyMatch(trigger -> trigger.isPullRequestTrigger());
 
+                // TODO: Resolve JENKINS-64853
+
                 descriptor.getRetryingWebhookHandler().register(
                         bitbucketServerConfiguration.getBaseUrl(),
                         bitbucketServerConfiguration.getGlobalCredentialsProvider(owner),
