@@ -9,22 +9,25 @@ import static java.util.Objects.requireNonNull;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class BitbucketPullRequest {
 
-    private final int id;
+    private final long id;
     private final BitbucketPullState state;
     private final BitbucketPullRequestRef fromRef;
     private final BitbucketPullRequestRef toRef;
+    private final long updatedDate;
 
     @JsonCreator
     public BitbucketPullRequest(
-            @JsonProperty("id") int id,
+            @JsonProperty("id") long id,
             @JsonProperty("state") BitbucketPullState state,
             @JsonProperty("fromRef") BitbucketPullRequestRef fromRef,
-            @JsonProperty("toRef") BitbucketPullRequestRef toRef) {
+            @JsonProperty("toRef") BitbucketPullRequestRef toRef,
+            @JsonProperty("updatedDate") long updatedDate) {
         this.id = requireNonNull(id, "id");
         this.state = requireNonNull(state, "state");
         this.fromRef = requireNonNull(fromRef, "fromRef");
         this.toRef = requireNonNull(toRef, "toRef");
-    }
+        this.updatedDate = requireNonNull(updatedDate, "updatedDate");
+        }
 
     //Requests don't have to have the same state to be equal
     @Override
@@ -41,12 +44,16 @@ public class BitbucketPullRequest {
                toRef.equals(that.toRef);
     }
 
+    public long getUpdatedDate() {
+        return updatedDate;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(id, fromRef, toRef);
     }
 
-    public int getId() {
+    public long getId() {
         return id;
     }
 

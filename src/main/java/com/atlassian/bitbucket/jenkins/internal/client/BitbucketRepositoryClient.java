@@ -42,4 +42,14 @@ public interface BitbucketRepositoryClient {
      * @return a stream of all (potentially spanning multiple pages) open pull requests
      */
     Stream<BitbucketPullRequest> getOpenPullRequests();
+
+    /**
+     * Gets all pull requests (open, merged, declined) for the repository. The returned stream will make paged calls to Bitbucket to
+     * ensure that all pull requests are returned. Consumers are advised that this can return large amounts of data
+     * and are <strong>strongly</strong> encouraged to not collect to a list or similar before processing items, but
+     * rather process them as they come in.
+     *
+     * @return a stream of all (potentially spanning multiple pages) pull requests
+     */
+     Stream<BitbucketPullRequest> getAllPullRequests();
 }

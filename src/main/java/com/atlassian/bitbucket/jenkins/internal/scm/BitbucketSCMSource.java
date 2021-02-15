@@ -268,8 +268,8 @@ public class BitbucketSCMSource extends SCMSource {
                 DescriptorImpl descriptor = (DescriptorImpl) getDescriptor();
                 try {
                     listener.getLogger().print("Refreshing pull requests");
-                    Stream<BitbucketPullRequest> bbsPullRequests = fetchOpenPullRequestsFromBbsInstance(descriptor);
                     String serverId = getServerId();
+                    Stream<BitbucketPullRequest> bbsPullRequests = fetchPullRequestsFromBbsInstance(serverId, descriptor);
                     if (serverId != null) {
                         descriptor.getPullRequestStore().refreshStore(getProjectKey(), getRepositorySlug(), serverId,
                                 bbsPullRequests);
@@ -282,7 +282,7 @@ public class BitbucketSCMSource extends SCMSource {
         }
     }
 
-    private Stream<BitbucketPullRequest> fetchOpenPullRequestsFromBbsInstance(DescriptorImpl descriptor) {
+    private Stream<BitbucketPullRequest> fetchPullRequestsFromBbsInstance(String serverId, DescriptorImpl descriptor) {
         BitbucketServerConfiguration bitbucketServerConfiguration = descriptor.getConfiguration(getServerId())
                 .orElseThrow(() -> new BitbucketClientException(
                         "Server config not found for input server id " + getServerId()));
@@ -298,6 +298,13 @@ public class BitbucketSCMSource extends SCMSource {
             BitbucketClientFactory clientFactory =
                     descriptor.getBitbucketClientFactoryProvider().getClient(bitbucketServerConfiguration.getBaseUrl(),
                             credentials);
+            //When Jenkins starts up, and our store has no prs - we don't want to fetch all prs as it is too time-consuming
+            // so in this case we only fetch open pull requests instead.
+            if (descriptor.getPullRequestStore().hasPullRequestForRepository(getProjectKey(), getRepositorySlug(), serverId)) {
+                return clientFactory
+                        .getProjectClient(getProjectKey())
+                        .getRepositoryClient(getRepositorySlug()).getAllPullRequests();
+            }
             return clientFactory
                     .getProjectClient(getProjectKey())
                     .getRepositoryClient(getRepositorySlug()).getOpenPullRequests();

@@ -32,7 +32,6 @@ public class BitbucketRepositoryClientImpl implements BitbucketRepositoryClient 
                 .addPathSegment("repos")
                 .addPathSegment(requireNonNull(stripToNull(repositorySlug), "repoSlug"))
                 .addPathSegment("pull-requests")
-                .addQueryParameter("state", "OPEN")
                 .addQueryParameter("withAttributes", "false")
                 .addQueryParameter("withProperties", "false")
                 .build();
@@ -55,10 +54,24 @@ public class BitbucketRepositoryClientImpl implements BitbucketRepositoryClient 
     }
 
     @Override
+    public Stream<BitbucketPullRequest> getAllPullRequests() {
+        HttpUrl.Builder urlBuilder = url.newBuilder();
+        urlBuilder.addQueryParameter("state", "ALL");
+        return getBitbucketPullRequestStream(urlBuilder);
+    }
+
+    @Override
     public Stream<BitbucketPullRequest> getOpenPullRequests() {
+        HttpUrl.Builder urlBuilder = url.newBuilder();
+        urlBuilder.addQueryParameter("state", "OPEN");
+        return getBitbucketPullRequestStream(urlBuilder);
+    }
+
+    private Stream<BitbucketPullRequest> getBitbucketPullRequestStream(HttpUrl.Builder urlBuilder) {
+        HttpUrl url = urlBuilder.build();
         BitbucketPage<BitbucketPullRequest> firstPage =
                 bitbucketRequestExecutor.makeGetRequest(url, new TypeReference<BitbucketPage<BitbucketPullRequest>>() {}).getBody();
-        return BitbucketPageStreamUtil.toStream(firstPage, new BitbucketRepositoryClientImpl.NextPageFetcherImpl(url, bitbucketRequestExecutor))
+        return BitbucketPageStreamUtil.toStream(firstPage, new NextPageFetcherImpl(url, bitbucketRequestExecutor))
                 .map(BitbucketPage::getValues).flatMap(Collection::stream);
     }
 
