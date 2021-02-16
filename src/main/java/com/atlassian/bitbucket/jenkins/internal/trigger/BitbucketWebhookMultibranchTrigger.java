@@ -9,17 +9,20 @@ import hudson.triggers.TriggerDescriptor;
 import jenkins.branch.MultiBranchProject;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
-
 import javax.inject.Inject;
 import java.util.logging.Logger;
 
 public class BitbucketWebhookMultibranchTrigger extends Trigger<MultiBranchProject<?, ?>> {
 
     private static final Logger LOGGER = Logger.getLogger(BitbucketWebhookMultibranchTrigger.class.getName());
+    private final boolean refTrigger;
+    private final boolean pullRequestTrigger;
 
     @SuppressWarnings("RedundantNoArgConstructor") // Required for Stapler
     @DataBoundConstructor
-    public BitbucketWebhookMultibranchTrigger() {
+    public BitbucketWebhookMultibranchTrigger(boolean refTrigger, boolean pullRequestTrigger) {
+        this.refTrigger = refTrigger;
+        this.pullRequestTrigger = pullRequestTrigger;
     }
 
     @Override
@@ -27,7 +30,15 @@ public class BitbucketWebhookMultibranchTrigger extends Trigger<MultiBranchProje
         return (BitbucketWebhookMultibranchTrigger.DescriptorImpl) super.getDescriptor();
     }
 
-    @Symbol("BitbucketWebhookMultibranchTriggerImpl")
+    public boolean isPullRequestTrigger() {
+        return pullRequestTrigger;
+    }
+
+    public boolean isRefTrigger() {
+        return refTrigger;
+    }
+
+    @Symbol("BitbucketWebhookMultibranchTrigger")
     @Extension
     public static class DescriptorImpl extends TriggerDescriptor {
 
@@ -56,6 +67,5 @@ public class BitbucketWebhookMultibranchTrigger extends Trigger<MultiBranchProje
         public boolean isApplicable(Item item) {
             return item instanceof MultiBranchProject;
         }
-
     }
 }

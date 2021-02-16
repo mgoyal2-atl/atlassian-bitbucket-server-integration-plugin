@@ -3,7 +3,6 @@ package com.atlassian.bitbucket.jenkins.internal.trigger.register;
 import com.atlassian.bitbucket.jenkins.internal.client.BitbucketCapabilitiesClient;
 import com.atlassian.bitbucket.jenkins.internal.client.BitbucketWebhookClient;
 import com.atlassian.bitbucket.jenkins.internal.client.exception.BitbucketMissingCapabilityException;
-import com.atlassian.bitbucket.jenkins.internal.client.exception.WebhookNotSupportedException;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketWebhook;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketWebhookRequest;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketWebhookSupportedEvents;
@@ -56,8 +55,13 @@ public class BitbucketWebhookHandler implements WebhookHandler {
     }
 
     @Override
+    @Nullable
     public BitbucketWebhook register(WebhookRegisterRequest request) {
         Collection<BitbucketWebhookEvent> events = getEvents(request);
+        //If wanted webhook has no events, do nothing
+        if (events.isEmpty()) {
+            return null;
+        }
         return process(request, events);
     }
 
@@ -134,9 +138,6 @@ public class BitbucketWebhookHandler implements WebhookHandler {
                 supportedEvents.add(PULL_REQUEST_OPENED_EVENT);
             }
         }
-        if (supportedEvents.isEmpty()) {
-            throw new WebhookNotSupportedException("Remote server does not support the required events.");
-        }
         return supportedEvents;
     }
 
@@ -158,6 +159,7 @@ public class BitbucketWebhookHandler implements WebhookHandler {
      * @param request the input request, collection of events
      * @return the correct registered/updated bitbucket webhook
      */
+    @Nullable
     private BitbucketWebhook process(WebhookRegisterRequest request,
                                      Collection<BitbucketWebhookEvent> events) {
         String callback = constructCallbackUrl(request);

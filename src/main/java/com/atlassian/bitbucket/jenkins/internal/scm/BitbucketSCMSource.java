@@ -13,10 +13,10 @@ import com.atlassian.bitbucket.jenkins.internal.model.BitbucketNamedLink;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketProject;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketPullRequest;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRepository;
-import com.atlassian.bitbucket.jenkins.internal.trigger.BitbucketWebhookMultibranchPRTrigger;
 import com.atlassian.bitbucket.jenkins.internal.trigger.BitbucketWebhookMultibranchTrigger;
 import com.atlassian.bitbucket.jenkins.internal.trigger.RetryingWebhookHandler;
 import com.atlassian.bitbucket.jenkins.internal.trigger.register.PullRequestStore;
+import com.atlassian.bitbucket.jenkins.internal.trigger.register.WebhookRegistrationFailed;
 import com.cloudbees.hudson.plugins.folder.computed.ComputedFolder;
 import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
@@ -160,18 +160,21 @@ public class BitbucketSCMSource extends SCMSource {
                 BitbucketServerConfiguration bitbucketServerConfiguration = descriptor.getConfiguration(getServerId())
                         .orElseThrow(() -> new BitbucketClientException(
                                 "Server config not found for input server id " + getServerId()));
-                boolean containsPushTrigger = project.getTriggers()
-                        .keySet()
-                        .stream()
-                        .anyMatch(BitbucketWebhookMultibranchTrigger.DescriptorImpl.class::isInstance);
-                boolean containsPRTrigger = project.getTriggers()
-                        .keySet()
-                        .stream()
-                        .anyMatch(BitbucketWebhookMultibranchPRTrigger.DescriptorImpl.class::isInstance);
-                descriptor.getRetryingWebhookHandler().register(
-                        bitbucketServerConfiguration.getBaseUrl(),
-                        bitbucketServerConfiguration.getGlobalCredentialsProvider(owner),
-                        repository, containsPushTrigger, containsPRTrigger);
+                List<BitbucketWebhookMultibranchTrigger> triggers =
+                        new ArrayList<BitbucketWebhookMultibranchTrigger>(project.getTriggers().values());
+                boolean containsPushTrigger = triggers.stream().anyMatch(trigger -> trigger.isRefTrigger());
+                boolean containsPRTrigger = triggers.stream().anyMatch(trigger -> trigger.isPullRequestTrigger());
+
+                try {
+                    descriptor.getRetryingWebhookHandler().register(
+                            bitbucketServerConfiguration.getBaseUrl(),
+                            bitbucketServerConfiguration.getGlobalCredentialsProvider(owner),
+                            repository, containsPushTrigger, containsPRTrigger);
+                } catch (WebhookRegistrationFailed webhookRegistrationFailed) {
+                    LOGGER.severe("Webhook failed to register- token credentials assigned to " + bitbucketServerConfiguration.getServerName()
+                                  + " do not have admin access. Please reconfigure your instance in the Manage Jenkins -> Settings page.");
+                }
+
             }
         }
     }

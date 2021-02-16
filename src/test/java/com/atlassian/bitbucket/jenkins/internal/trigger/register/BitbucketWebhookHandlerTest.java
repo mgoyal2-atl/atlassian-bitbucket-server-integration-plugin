@@ -3,7 +3,6 @@ package com.atlassian.bitbucket.jenkins.internal.trigger.register;
 import com.atlassian.bitbucket.jenkins.internal.client.BitbucketCapabilitiesClient;
 import com.atlassian.bitbucket.jenkins.internal.client.BitbucketWebhookClient;
 import com.atlassian.bitbucket.jenkins.internal.client.exception.BitbucketMissingCapabilityException;
-import com.atlassian.bitbucket.jenkins.internal.client.exception.WebhookNotSupportedException;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketWebhook;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketWebhookRequest;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketWebhookSupportedEvents;
@@ -27,8 +26,7 @@ import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsIterableContaining.hasItem;
 import static org.hamcrest.core.IsNot.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -106,6 +104,15 @@ public class BitbucketWebhookHandlerTest {
 
         assertThat(result.getEvents(), iterableWithSize(5));
         assertEquals(result.getEvents(), REF_AND_PR_EVENTS);
+        verify(webhookClient, never()).updateWebhook(anyInt(), any(BitbucketWebhookRequest.class));
+        verify(webhookClient, never()).deleteWebhook(anyInt());
+    }
+
+    @Test
+    public void testCorrectNoEventSubscription() {
+        BitbucketWebhook result = handler.register(defaultBuilder.isMirror(false).shouldTriggerOnPush(false).shouldTriggerOnPR(false).build());
+
+        assertNull(result);
         verify(webhookClient, never()).updateWebhook(anyInt(), any(BitbucketWebhookRequest.class));
         verify(webhookClient, never()).deleteWebhook(anyInt());
     }
@@ -286,6 +293,21 @@ public class BitbucketWebhookHandlerTest {
     }
 
     @Test
+    public void testUpdateExistingWebhookWithNoEvents() {
+        BitbucketWebhook event1 =
+                new BitbucketWebhook(1, WEBHOOK_NAME, singleton(REPO_REF_CHANGE.getEventIds().get(0)), EXPECTED_URL, false);
+        BitbucketWebhook event2 =
+                new BitbucketWebhook(2, WEBHOOK_NAME, singleton(MIRROR_SYNCHRONIZED_EVENT.getEventIds().get(0)), EXPECTED_URL, false);
+
+        BitbucketWebhook result = handler.register(defaultBuilder.isMirror(false).shouldTriggerOnPR(false).shouldTriggerOnPush(false).build());
+
+        assertThat(result, is(equalTo(null)));
+        verify(webhookClient, never()).registerWebhook(any(BitbucketWebhookRequest.class));
+        verify(webhookClient, never()).updateWebhook(anyInt(), argThat((BitbucketWebhookRequest request) -> request.isActive()));
+        verify(webhookClient, never()).deleteWebhook(anyInt());
+    }
+
+    @Test
     public void testDuplicatePushWebhooks() {
         BitbucketWebhook event1 =
                 new BitbucketWebhook(1, WEBHOOK_NAME, singleton(REPO_REF_CHANGE.getEventIds().get(0)), EXPECTED_URL, false);
@@ -409,13 +431,6 @@ public class BitbucketWebhookHandlerTest {
         assertThat(result.getUrl(), is(equalTo(EXPECTED_URL)));
         verify(webhookClient, never()).updateWebhook(anyInt(), any(BitbucketWebhookRequest.class));
         verify(webhookClient, never()).deleteWebhook(anyInt());
-    }
-
-    @Test(expected = WebhookNotSupportedException.class)
-    public void testCapabilitiesNeedToAtleastSupportRepoRef() {
-        when(capabilitiesClient.getWebhookSupportedEvents()).thenReturn(new BitbucketWebhookSupportedEvents(new HashSet<>()));
-
-        handler.register(defaultBuilder.isMirror(true).shouldTriggerOnPush(true).build());
     }
 
     @Test
