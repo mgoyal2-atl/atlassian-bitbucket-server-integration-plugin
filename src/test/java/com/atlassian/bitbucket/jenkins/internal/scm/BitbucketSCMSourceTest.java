@@ -1,6 +1,7 @@
 package com.atlassian.bitbucket.jenkins.internal.scm;
 
 import com.atlassian.bitbucket.jenkins.internal.config.BitbucketServerConfiguration;
+import com.atlassian.bitbucket.jenkins.internal.config.BitbucketTokenCredentials;
 import com.atlassian.bitbucket.jenkins.internal.credentials.GlobalCredentialsProvider;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketNamedLink;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketProject;
@@ -14,7 +15,8 @@ import hudson.plugins.git.UserRemoteConfig;
 import hudson.scm.SCM;
 import hudson.util.LogTaskListener;
 import jenkins.branch.MultiBranchProject;
-import jenkins.scm.api.*;
+import jenkins.scm.api.SCMHead;
+import jenkins.scm.api.SCMSourceDescriptor;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
 
@@ -279,16 +281,18 @@ public class BitbucketSCMSourceTest {
                     BitbucketRepository repository = mock(BitbucketRepository.class);
                     String baseUrl = "http://example.com";
 
+                    doReturn(mock(GlobalCredentialsProvider.class))
+                            .when(bitbucketServerConfiguration).getGlobalCredentialsProvider(any(String.class));
                     when(descriptor.getConfiguration(argThat(serverId -> !isBlank(serverId))))
                             .thenReturn(Optional.of(bitbucketServerConfiguration));
                     when(descriptor.getConfiguration(argThat(StringUtils::isBlank)))
                             .thenReturn(Optional.empty());
                     when(descriptor.getBitbucketScmHelper(
                             nullable(String.class),
-                            nullable(String.class)))
+                            nullable(BitbucketTokenCredentials.class)))
                             .thenReturn(scmHelper);
-                    when(descriptor.getRetryingWebhookHandler()).thenReturn(mock(RetryingWebhookHandler.class));
                     when(descriptor.getPullRequestStore()).thenReturn(mock(PullRequestStoreImpl.class));
+                    when(descriptor.getRetryingWebhookHandler()).thenReturn(mock(RetryingWebhookHandler.class));
                     when(scmHelper.getRepository(nullable(String.class), nullable(String.class))).thenReturn(repository);
                     when(repository.getProject()).thenReturn(mock(BitbucketProject.class));
                     when(repository.getCloneUrls()).thenReturn(Arrays.asList(new BitbucketNamedLink("http", httpCloneLink), new BitbucketNamedLink("ssh", sshCloneLink)));
