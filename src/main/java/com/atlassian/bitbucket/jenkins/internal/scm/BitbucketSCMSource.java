@@ -5,8 +5,8 @@ import com.atlassian.bitbucket.jenkins.internal.client.BitbucketClientFactoryPro
 import com.atlassian.bitbucket.jenkins.internal.client.exception.BitbucketClientException;
 import com.atlassian.bitbucket.jenkins.internal.config.BitbucketPluginConfiguration;
 import com.atlassian.bitbucket.jenkins.internal.config.BitbucketServerConfiguration;
-import com.atlassian.bitbucket.jenkins.internal.credentials.BitbucketCredentials;
 import com.atlassian.bitbucket.jenkins.internal.config.BitbucketTokenCredentials;
+import com.atlassian.bitbucket.jenkins.internal.credentials.BitbucketCredentials;
 import com.atlassian.bitbucket.jenkins.internal.credentials.GlobalCredentialsProvider;
 import com.atlassian.bitbucket.jenkins.internal.credentials.JenkinsToBitbucketCredentials;
 import com.atlassian.bitbucket.jenkins.internal.credentials.JenkinsToBitbucketCredentialsImpl;
@@ -170,7 +170,7 @@ public class BitbucketSCMSource extends SCMSource {
                     descriptor.getRetryingWebhookHandler().register(
                             bitbucketServerConfiguration.getBaseUrl(),
                             bitbucketServerConfiguration.getGlobalCredentialsProvider(owner),
-                            repository, containsPushTrigger, containsPRTrigger);
+                            repository, containsPRTrigger, containsPushTrigger);
                 } catch (WebhookRegistrationFailed webhookRegistrationFailed) {
                     LOGGER.severe("Webhook failed to register- token credentials assigned to " + bitbucketServerConfiguration.getServerName()
                                   + " do not have admin access. Please reconfigure your instance in the Manage Jenkins -> Settings page.");

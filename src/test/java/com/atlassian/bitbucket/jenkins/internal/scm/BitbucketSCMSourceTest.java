@@ -173,7 +173,7 @@ public class BitbucketSCMSourceTest {
 
         bitbucketSCMSource.afterSave();
 
-        verify(descriptor.getRetryingWebhookHandler()).register(eq(baseUrl), any(), any(), eq(true), eq(false));
+        verify(descriptor.getRetryingWebhookHandler()).register(eq(baseUrl), any(), any(), eq(false), eq(true));
     }
 
     @Test
@@ -196,7 +196,7 @@ public class BitbucketSCMSourceTest {
 
         bitbucketSCMSource.afterSave();
 
-        verify(descriptor.getRetryingWebhookHandler()).register(eq(baseUrl), any(), any(), eq(false), eq(true));
+        verify(descriptor.getRetryingWebhookHandler()).register(eq(baseUrl), any(), any(), eq(true), eq(false));
     }
 
     @Test
@@ -296,6 +296,8 @@ public class BitbucketSCMSourceTest {
                     when(scmHelper.getRepository(nullable(String.class), nullable(String.class))).thenReturn(repository);
                     when(repository.getProject()).thenReturn(mock(BitbucketProject.class));
                     when(repository.getCloneUrls()).thenReturn(Arrays.asList(new BitbucketNamedLink("http", httpCloneLink), new BitbucketNamedLink("ssh", sshCloneLink)));
+                    doReturn(mock(GlobalCredentialsProvider.class))
+                            .when(bitbucketServerConfiguration).getGlobalCredentialsProvider(any(String.class));
                 }
                 return descriptor;
             }
