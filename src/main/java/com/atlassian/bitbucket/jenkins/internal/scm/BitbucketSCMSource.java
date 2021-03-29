@@ -10,12 +10,10 @@ import com.atlassian.bitbucket.jenkins.internal.credentials.BitbucketCredentials
 import com.atlassian.bitbucket.jenkins.internal.credentials.GlobalCredentialsProvider;
 import com.atlassian.bitbucket.jenkins.internal.credentials.JenkinsToBitbucketCredentials;
 import com.atlassian.bitbucket.jenkins.internal.credentials.JenkinsToBitbucketCredentialsImpl;
-import com.atlassian.bitbucket.jenkins.internal.model.BitbucketNamedLink;
-import com.atlassian.bitbucket.jenkins.internal.model.BitbucketProject;
-import com.atlassian.bitbucket.jenkins.internal.model.BitbucketPullRequest;
-import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRepository;
+import com.atlassian.bitbucket.jenkins.internal.model.*;
 import com.atlassian.bitbucket.jenkins.internal.trigger.BitbucketWebhookMultibranchTrigger;
 import com.atlassian.bitbucket.jenkins.internal.trigger.RetryingWebhookHandler;
+import com.atlassian.bitbucket.jenkins.internal.trigger.events.AbstractWebhookEvent;
 import com.atlassian.bitbucket.jenkins.internal.trigger.register.PullRequestStore;
 import com.atlassian.bitbucket.jenkins.internal.trigger.register.WebhookRegistrationFailed;
 import com.cloudbees.hudson.plugins.folder.computed.ComputedFolder;
@@ -163,14 +161,14 @@ public class BitbucketSCMSource extends SCMSource {
                                 "Server config not found for input server id " + getServerId()));
                 List<BitbucketWebhookMultibranchTrigger> triggers =
                         new ArrayList<BitbucketWebhookMultibranchTrigger>(project.getTriggers().values());
-                boolean containsPushTrigger = triggers.stream().anyMatch(trigger -> trigger.isRefTrigger());
-                boolean containsPRTrigger = triggers.stream().anyMatch(trigger -> trigger.isPullRequestTrigger());
+                boolean containsPRTrigger = triggers.stream().anyMatch(BitbucketWebhookMultibranchTrigger::isPullRequestTrigger);
+                boolean containsRefChangeTrigger = triggers.stream().anyMatch(BitbucketWebhookMultibranchTrigger::isRefTrigger);
 
                 try {
                     descriptor.getRetryingWebhookHandler().register(
                             bitbucketServerConfiguration.getBaseUrl(),
                             bitbucketServerConfiguration.getGlobalCredentialsProvider(owner),
-                            repository, containsPRTrigger, containsPushTrigger);
+                            repository, containsPRTrigger, containsRefChangeTrigger);
                 } catch (WebhookRegistrationFailed webhookRegistrationFailed) {
                     LOGGER.severe("Webhook failed to register- token credentials assigned to " + bitbucketServerConfiguration.getServerName()
                                   + " do not have admin access. Please reconfigure your instance in the Manage Jenkins -> Settings page.");
@@ -247,6 +245,7 @@ public class BitbucketSCMSource extends SCMSource {
         this.webhookRegistered = webhookRegistered;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     @VisibleForTesting
     List<BitbucketWebhookMultibranchTrigger.DescriptorImpl> getTriggers(ComputedFolder<?> owner) {
         return owner.getTriggers().keySet().stream()
@@ -260,7 +259,24 @@ public class BitbucketSCMSource extends SCMSource {
                             @CheckForNull SCMHeadEvent<?> event,
                             TaskListener listener) throws IOException, InterruptedException {
         handleRefreshingPRStore(event, listener);
+        SCMSourceOwner owner = super.getOwner();
+        if (owner instanceof ComputedFolder && event != null) {
+            Object payload = event.getPayload();
+            if (payload instanceof AbstractWebhookEvent) {
+                AbstractWebhookEvent webhookEvent = (AbstractWebhookEvent) payload;
+                boolean eventApplicable = ((ComputedFolder<?>) owner).getTriggers().values().stream()
+                        .filter(trg -> trg instanceof BitbucketWebhookMultibranchTrigger)
+                        .anyMatch(trig -> (
+                                (BitbucketWebhookMultibranchTrigger) trig).isApplicableForEventType(webhookEvent)
+                        );
+                if (eventApplicable) {
+                    getGitSCMSource().accessibleRetrieve(criteria, observer, event, listener);
+                }
+                return;
+            }
+        }
         getGitSCMSource().accessibleRetrieve(criteria, observer, event, listener);
+
     }
 
     protected void handleRefreshingPRStore(@CheckForNull SCMHeadEvent<?> event,
@@ -307,11 +323,11 @@ public class BitbucketSCMSource extends SCMSource {
             if (descriptor.getPullRequestStore().hasPullRequestForRepository(getProjectKey(), getRepositorySlug(), serverId)) {
                 return clientFactory
                         .getProjectClient(getProjectKey())
-                        .getRepositoryClient(getRepositorySlug()).getAllPullRequests();
+                        .getRepositoryClient(getRepositorySlug()).getPullRequests(null);
             }
             return clientFactory
                     .getProjectClient(getProjectKey())
-                    .getRepositoryClient(getRepositorySlug()).getOpenPullRequests();
+                    .getRepositoryClient(getRepositorySlug()).getPullRequests(BitbucketPullRequestState.OPEN);
         }
         return Stream.empty();
     }

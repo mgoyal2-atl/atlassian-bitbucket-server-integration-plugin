@@ -37,11 +37,11 @@ public class BitbucketRepositoryClientImplTest {
         String url = format(WEBHOOK_URL, BITBUCKET_BASE_URL, projectKey, repoSlug);
         fakeRemoteHttpServer.mapUrlToResult(url, response);
 
-        List<BitbucketPullRequest> pullRequests = client.getOpenPullRequests().collect(toList());
+        List<BitbucketPullRequest> pullRequests = client.getPullRequests(BitbucketPullRequestState.OPEN).collect(toList());
 
         assertThat(pullRequests.size(), is(equalTo(2)));
         assertThat(pullRequests.stream().map(BitbucketPullRequest::getId).collect(toSet()), hasItems(new Long(96), new Long(97)));
-         assertThat(pullRequests.stream().map(BitbucketPullRequest::getState).collect(toSet()), hasItems(BitbucketPullState.OPEN));
+         assertThat(pullRequests.stream().map(BitbucketPullRequest::getState).collect(toSet()), hasItems(BitbucketPullRequestState.OPEN));
     }
 
     @Test
@@ -51,7 +51,7 @@ public class BitbucketRepositoryClientImplTest {
         String url = format(webhookUrl, BITBUCKET_BASE_URL, projectKey, repoSlug);
         fakeRemoteHttpServer.mapUrlToResult(url, response);
 
-        List<BitbucketPullRequest> pullRequests = client.getAllPullRequests().collect(toList());
+        List<BitbucketPullRequest> pullRequests = client.getPullRequests(null).collect(toList());
 
         assertThat(pullRequests.size(), is(equalTo(2)));
         assertThat(pullRequests.stream().map(BitbucketPullRequest::getId).collect(toSet()), hasItems(new Long(96), new Long(97)));

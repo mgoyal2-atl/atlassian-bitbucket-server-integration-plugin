@@ -3,10 +3,11 @@ package com.atlassian.bitbucket.jenkins.internal.trigger;
 import com.atlassian.bitbucket.jenkins.internal.config.BitbucketPluginConfiguration;
 import com.atlassian.bitbucket.jenkins.internal.config.BitbucketServerConfiguration;
 import com.atlassian.bitbucket.jenkins.internal.model.*;
-import com.atlassian.bitbucket.jenkins.internal.trigger.register.PullRequestStore;
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCM;
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCMRepository;
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCMSource;
+import com.atlassian.bitbucket.jenkins.internal.trigger.events.*;
+import com.atlassian.bitbucket.jenkins.internal.trigger.register.PullRequestStore;
 import hudson.plugins.git.GitSCM;
 import hudson.scm.SCM;
 import hudson.security.ACL;
@@ -47,7 +48,17 @@ public class BitbucketWebhookConsumer {
     @Inject
     private PullRequestStore pullRequestStore;
 
-    void process(RefsChangedWebhookEvent event) {
+    void process(AbstractWebhookEvent e) {
+        if (e instanceof MirrorSynchronizedWebhookEvent) {
+            process((MirrorSynchronizedWebhookEvent) e);
+        } else if (e instanceof RefsChangedWebhookEvent) {
+            process((RefsChangedWebhookEvent) e);
+        } else if (e instanceof PullRequestWebhookEvent) {
+            process((PullRequestWebhookEvent) e);
+        }
+    }
+
+    private void process(RefsChangedWebhookEvent event) {
         BitbucketRepository repository = event.getRepository();
         LOGGER.fine(format("Received refs changed event from repo: %s/%s  ", repository.getProject().getKey(), repository.getSlug()));
         if (!isEligibleRefs(event)) {
@@ -57,7 +68,7 @@ public class BitbucketWebhookConsumer {
         triggerJob(event, refChangedDetails);
     }
 
-    void process(MirrorSynchronizedWebhookEvent event) {
+    private void process(MirrorSynchronizedWebhookEvent event) {
         BitbucketRepository repository = event.getRepository();
         LOGGER.fine(format("Received Mirror Synchronized changed event from repo: %s/%s  ", repository.getProject().getKey(), repository.getSlug()));
         if (!isEligibleRefs(event)) {
@@ -67,8 +78,8 @@ public class BitbucketWebhookConsumer {
         triggerJob(event, refChangedDetails);
     }
 
-    void process(PullRequestWebhookEvent event) {
-        LOGGER.fine(format("Received pull request event"));
+    private void process(PullRequestWebhookEvent event) {
+        LOGGER.fine("Received pull request event");
         RefChangedDetails refChangedDetails = new RefChangedDetails(event);
         Optional<BitbucketServerConfiguration> server = bitbucketPluginConfiguration.getValidServerList()
                 .stream()
@@ -78,10 +89,10 @@ public class BitbucketWebhookConsumer {
                 .findFirst();
         server.ifPresent(configuration ->
                 pullRequestStore.updatePullRequest(configuration.getId(), event.getPullRequest()));
-        if (BitbucketWebhookEvent.PULL_REQUEST_OPENED_EVENT.getEventIds().contains(event.getEventKey())) {
+        if (event instanceof PullRequestOpenedWebhookEvent) {
             triggerJob(event, refChangedDetails);
-        } else if (BitbucketWebhookEvent.PULL_REQUEST_CLOSED_EVENT.getEventIds().contains(event.getEventKey())) {
-            BitbucketSCMHeadPREvent.fireNow(new BitbucketSCMHeadPREvent(SCMEvent.Type.REMOVED, event, event.getPullRequest().getFromRef().getRepository().getSlug()));
+        } else if (event instanceof PullRequestClosedWebhookEvent) {
+            BitbucketSCMHeadPullRequestOpenedEvent.fireNow(new BitbucketSCMHeadPullRequestOpenedEvent(SCMEvent.Type.REMOVED, event, event.getPullRequest().getFromRef().getRepository().getSlug()));
         }
     }
 
@@ -199,37 +210,32 @@ public class BitbucketWebhookConsumer {
                 .map(BitbucketWebhookConsumer::toTriggerDetails)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
-                .filter(details -> details.getTrigger().isApplicableForEventType(event))
+                .filter(details -> details.getTrigger().isApplicableForEvent(event))
                 .filter(triggerDetails -> hasMatchingRepository(refChangedDetails, triggerDetails.getJob()))
                 .peek(triggerDetails -> LOGGER.fine("Triggering " + triggerDetails.getJob().getFullDisplayName()))
                 .forEach(triggerDetails -> triggerDetails.getTrigger().trigger(requestBuilder.build()));
     }
 
-    private void triggerJob(PullRequestWebhookEvent event, RefChangedDetails refChangedDetails) {
-        try (ACLContext ctx = ACL.as(ACL.SYSTEM)) {
+    private void triggerJob(AbstractWebhookEvent event, RefChangedDetails refChangedDetails) {
+        try (ACLContext ignored = ACL.as(ACL.SYSTEM)) {
             BitbucketWebhookTriggerRequest.Builder requestBuilder = BitbucketWebhookTriggerRequest.builder();
             event.getActor().ifPresent(requestBuilder::actor);
 
             processJobs(event, refChangedDetails, requestBuilder);
-            BitbucketSCMHeadPREvent.fireNow(new BitbucketSCMHeadPREvent(SCMEvent.Type.CREATED, event, event.getPullRequest().getToRef().getRepository().getSlug()));
+            if (event instanceof PullRequestOpenedWebhookEvent) {
+                PullRequestOpenedWebhookEvent prOpenEvent = (PullRequestOpenedWebhookEvent) event;
+                BitbucketSCMHeadPullRequestOpenedEvent.fireNow(new BitbucketSCMHeadPullRequestOpenedEvent(SCMEvent.Type.CREATED,
+                        prOpenEvent, prOpenEvent.getPullRequest().getToRef().getRepository().getSlug()));
+            } else if (event instanceof RefsChangedWebhookEvent) {
+                RefsChangedWebhookEvent refsChangedEvent = (RefsChangedWebhookEvent) event;
+                BitbucketSCMHeadEvent.fireNow(new BitbucketSCMHeadEvent(SCMEvent.Type.UPDATED, refsChangedEvent, refsChangedEvent.getRepository().getSlug()));
+            }
         }
     }
 
-    private void triggerJob(RefsChangedWebhookEvent event,
-                            RefChangedDetails refChangedDetails) {
-        try (ACLContext ctx = ACL.as(ACL.SYSTEM)) {
-            BitbucketWebhookTriggerRequest.Builder requestBuilder = BitbucketWebhookTriggerRequest.builder();
-            event.getActor().ifPresent(requestBuilder::actor);
+    private static class BitbucketSCMHeadPullRequestOpenedEvent extends SCMHeadEvent<PullRequestWebhookEvent> {
 
-            processJobs(event, refChangedDetails, requestBuilder);
-            //fire the head event to indicate to the SCMSources that changes have happened.
-            BitbucketSCMHeadEvent.fireNow(new BitbucketSCMHeadEvent(SCMEvent.Type.UPDATED, event, event.getRepository().getSlug()));
-        }
-    }
-
-    private static class BitbucketSCMHeadPREvent extends SCMHeadEvent<PullRequestWebhookEvent> {
-
-        public BitbucketSCMHeadPREvent(Type type, PullRequestWebhookEvent payload, String origin) {
+        public BitbucketSCMHeadPullRequestOpenedEvent(Type type, PullRequestWebhookEvent payload, String origin) {
             super(type, payload, origin);
         }
 
@@ -247,12 +253,12 @@ public class BitbucketWebhookConsumer {
             if (!matchingRepo(getPayload().getPullRequest().getToRef().getRepository(), src.getBitbucketSCMRepository())) {
                 return emptyMap();
             }
-            ArrayList<BitbucketPullRequestRef> refStream = new ArrayList<BitbucketPullRequestRef>();
+            ArrayList<BitbucketPullRequestRef> refStream = new ArrayList<>();
             refStream.add(getPayload().getPullRequest().getFromRef());
             return refStream.stream()
-                            .collect(Collectors.toMap(ref -> new GitBranchSCMHead(ref.getDisplayId()),
-                                                      ref -> new GitBranchSCMRevision(new GitBranchSCMHead(ref.getDisplayId()),
-                                                                                                           ref.getLatestCommit())));
+                    .collect(Collectors.toMap(ref -> new GitBranchSCMHead(ref.getDisplayId()),
+                            ref -> new GitBranchSCMRevision(new GitBranchSCMHead(ref.getDisplayId()),
+                                    ref.getLatestCommit())));
         }
 
         @Override
