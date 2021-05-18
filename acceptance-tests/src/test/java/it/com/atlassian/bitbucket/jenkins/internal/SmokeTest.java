@@ -10,7 +10,6 @@ import it.com.atlassian.bitbucket.jenkins.internal.applink.oauth.model.OAuthCons
 import it.com.atlassian.bitbucket.jenkins.internal.pageobjects.*;
 import it.com.atlassian.bitbucket.jenkins.internal.test.acceptance.ProjectBasedMatrixSecurityHelper;
 import it.com.atlassian.bitbucket.jenkins.internal.util.BitbucketUtils.*;
-import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.http.client.utils.URIBuilder;
 import org.eclipse.jgit.api.Git;
@@ -346,7 +345,6 @@ public class SmokeTest extends AbstractJUnitTest {
     }
 
     @Test
-    @Ignore("https://issues.jenkins-ci.org/browse/JENKINS-62463")
     public void testFullBuildFlowWithPipelineJobAndBuildTemplateStoredInJenkins() throws IOException, GitAPIException {
         WorkflowJob workflowJob = jenkins.jobs.create(WorkflowJob.class);
         workflowJob.addTrigger(WorkflowJobBitbucketWebhookTrigger.class);
