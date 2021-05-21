@@ -8,11 +8,7 @@ import com.atlassian.bitbucket.jenkins.internal.model.BitbucketProject;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRepository;
 import com.atlassian.bitbucket.jenkins.internal.trigger.BitbucketWebhookMultibranchTrigger;
 import com.atlassian.bitbucket.jenkins.internal.trigger.RetryingWebhookHandler;
-import hudson.plugins.git.GitSCM;
-import hudson.plugins.git.UserRemoteConfig;
-import hudson.scm.SCM;
 import jenkins.branch.MultiBranchProject;
-import jenkins.scm.api.SCMHead;
 import jenkins.scm.api.SCMSourceDescriptor;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
@@ -20,7 +16,6 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 
 import static java.util.Collections.singletonList;
@@ -28,8 +23,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.*;
@@ -38,33 +31,6 @@ public class BitbucketSCMSourceTest {
 
     private static final String httpCloneLink = "http://localhost:7990/fake.git";
     private static final String sshCloneLink = "ssh://git@localhost:7990/fake.git";
-
-    @Test
-    public void testBuildHttp() {
-        BitbucketSCMSource scmSource = createInstance("credentialsId", "serverId", "project", "repo");
-        SCMHead scmHead = mock(SCMHead.class);
-        when(scmHead.getName()).thenReturn("myBranch");
-        SCM scm = scmSource.build(scmHead, null);
-        assertTrue(scm instanceof GitSCM);
-        GitSCM gitSCM = (GitSCM) scm;
-        List<UserRemoteConfig> userRemoteConfigs = gitSCM.getUserRemoteConfigs();
-        assertEquals(1, userRemoteConfigs.size());
-        assertEquals(httpCloneLink, userRemoteConfigs.get(0).getUrl());
-    }
-
-    @Test
-    public void testBuildSsh() {
-        BitbucketSCMSource scmSource =
-                createInstance("credentialsId", "sshCredentialsId", "serverId", "project", "repo");
-        SCMHead scmHead = mock(SCMHead.class);
-        when(scmHead.getName()).thenReturn("myBranch");
-        SCM scm = scmSource.build(scmHead, null);
-        assertTrue(scm instanceof GitSCM);
-        GitSCM gitSCM = (GitSCM) scm;
-        List<UserRemoteConfig> userRemoteConfigs = gitSCM.getUserRemoteConfigs();
-        assertEquals(1, userRemoteConfigs.size());
-        assertEquals(sshCloneLink, userRemoteConfigs.get(0).getUrl());
-    }
 
     @Test
     public void testCredentialAndServerIdSaved() {
@@ -197,7 +163,7 @@ public class BitbucketSCMSourceTest {
                 when(scmHelper.getRepository(nullable(String.class), nullable(String.class))).thenReturn(repository);
                 when(repository.getProject()).thenReturn(mock(BitbucketProject.class));
                 when(repository.getCloneUrls()).thenReturn(Arrays.asList(new BitbucketNamedLink("http", httpCloneLink), new BitbucketNamedLink("ssh", sshCloneLink)));
-
+                when(repository.getSelfLink()).thenReturn("");
                 return descriptor;
             }
         };
