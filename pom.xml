@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
         <version>4.17</version>
-        <relativePath />
+        <relativePath/>
     </parent>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>atlassian-bitbucket-server-integration</artifactId>
@@ -21,10 +22,12 @@
         <jenkins.version>2.222.4</jenkins.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <net.oauth.version>20100527</net.oauth.version>
-        <surefireTestExclusions>nothing-to-exclude</surefireTestExclusions>
+        <!-- exclude the upgrade tests by default, as they interact with external resources and should not be run frequently -->
+        <surefireTestExclusions>upgrade/**</surefireTestExclusions>
     </properties>
     <name>Bitbucket Server Integration</name>
-    <description>This Jenkins plugin streamlines configuring Jenkins jobs to clone/fetch from Bitbucket Server.</description>
+    <description>This Jenkins plugin streamlines configuring Jenkins jobs to clone/fetch from Bitbucket Server.
+    </description>
     <url>https://github.com/jenkinsci/atlassian-bitbucket-server-integration-plugin</url>
 
     <licenses>
@@ -238,47 +241,7 @@
             <version>1.2</version>
             <scope>runtime</scope>
         </dependency>
-
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-core</artifactId>
-            <version>${hamcrest.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-library</artifactId>
-            <version>${hamcrest.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>2.21.0</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.rest-assured</groupId>
-            <artifactId>rest-assured</artifactId>
-            <version>4.0.0</version>
-            <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-lang3</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.sun.xml.bind</groupId>
-                    <artifactId>jaxb-osgi</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.spotify</groupId>
-            <artifactId>hamcrest-optional</artifactId>
-            <version>1.1.5</version>
-            <scope>test</scope>
-        </dependency>
+        <!--        Test dependencies -->
         <!--to mock Bitbucket Server-->
         <dependency>
             <groupId>com.github.tomakehurst</groupId>
@@ -311,6 +274,58 @@
                     <artifactId>jopt-simple</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.spotify</groupId>
+            <artifactId>hamcrest-optional</artifactId>
+            <version>1.1.5</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>4.0.0</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-lang3</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.sun.xml.bind</groupId>
+                    <artifactId>jaxb-osgi</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>net.lingala.zip4j</groupId>
+            <artifactId>zip4j</artifactId>
+            <version>2.9.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-core</artifactId>
+            <version>${hamcrest.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-library</artifactId>
+            <version>${hamcrest.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>2.21.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.reflections</groupId>
+            <artifactId>reflections</artifactId>
+            <version>0.9.12</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -394,7 +409,9 @@
                             <tasks>
                                 <echo>Copying across symlink</echo>
                                 <copy todir="${basedir}/src/main/resources/com/atlassian/bitbucket/jenkins/internal/scm/BitbucketSCMStep">
-                                    <fileset dir="${basedir}/src/main/resources/com/atlassian/bitbucket/jenkins/internal/scm/BitbucketSCM" includes="**" />
+                                    <fileset
+                                            dir="${basedir}/src/main/resources/com/atlassian/bitbucket/jenkins/internal/scm/BitbucketSCM"
+                                            includes="**"/>
                                 </copy>
                             </tasks>
                         </configuration>
@@ -408,7 +425,7 @@
                         <configuration>
                             <tasks>
                                 <echo>Creating artifacts dir</echo>
-                                <mkdir dir="${basedir}/target/artifacts" />
+                                <mkdir dir="${basedir}/target/artifacts"/>
                             </tasks>
                         </configuration>
                     </execution>
@@ -422,7 +439,7 @@
                             <tasks>
                                 <echo>Publishing Bitbucket logs to the artifacts directory</echo>
                                 <copy todir="${basedir}/target/artifacts" failonerror="false">
-                                    <fileset dir="${basedir}/target/bitbucket/home/log" includes="**" />
+                                    <fileset dir="${basedir}/target/bitbucket/home/log" includes="**"/>
                                 </copy>
                             </tasks>
                         </configuration>
@@ -534,6 +551,22 @@
             </build>
         </profile>
         <profile>
+            <id>upgradeTest</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <exclude>it/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>versionUpdate</id>
             <dependencies>
                 <dependency>
@@ -552,10 +585,11 @@
 
     <scm>
         <connection>scm:git:git://github.com/jenkinsci/atlassian-bitbucket-server-integration-plugin.git</connection>
-        <developerConnection>scm:git:git@github.com:jenkinsci/atlassian-bitbucket-server-integration-plugin.git</developerConnection>
+        <developerConnection>scm:git:git@github.com:jenkinsci/atlassian-bitbucket-server-integration-plugin.git
+        </developerConnection>
         <url>http://github.com/jenkinsci/atlassian-bitbucket-server-integration-plugin</url>
-      <tag>HEAD</tag>
-  </scm>
+        <tag>HEAD</tag>
+    </scm>
 
     <repositories>
         <repository>
