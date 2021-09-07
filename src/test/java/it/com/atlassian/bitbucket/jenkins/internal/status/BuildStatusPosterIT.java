@@ -1,8 +1,9 @@
 package it.com.atlassian.bitbucket.jenkins.internal.status;
 
+import com.atlassian.bitbucket.jenkins.internal.model.BitbucketNamedLink;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRepository;
 import com.atlassian.bitbucket.jenkins.internal.model.BuildState;
-import com.atlassian.bitbucket.jenkins.internal.status.BitbucketRevisionAction;
+import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketRevisionAction;
 import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
 import hudson.model.*;
 import it.com.atlassian.bitbucket.jenkins.internal.fixture.BitbucketJenkinsRule;
@@ -65,8 +66,8 @@ public class BuildStatusPosterIT {
                         .filter(repo ->
                                 "http".equals(repo.getName()))
                         .findFirst()
-                        .orElse(null)
-                        .getHref();
+                        .map(BitbucketNamedLink::getHref)
+                        .orElse(null);
         gitHelper.initialize(temporaryFolder.newFolder("repositoryCheckout"), cloneUrl);
         jenkinsProjectHandler = new JenkinsProjectHandler(bbJenkinsRule);
     }

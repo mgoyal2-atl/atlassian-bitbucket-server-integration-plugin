@@ -1,5 +1,6 @@
 package com.atlassian.bitbucket.jenkins.internal.status;
 
+import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketRevisionAction;
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCM;
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCMRepository;
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCMSource;
@@ -78,6 +79,9 @@ public class LocalSCMListenerTest {
         FreeStyleProject project = mock(FreeStyleProject.class);
         FreeStyleBuild build = mock(FreeStyleBuild.class);
         when(build.getParent()).thenReturn(project);
+        BitbucketRevisionAction revisionAction = new BitbucketRevisionAction(scmRepository, "branchName", "myCommit");
+        when(build.getAction(BitbucketRevisionAction.class))
+                .thenReturn(revisionAction);
 
         listener.onCheckout(build, bitbucketSCM, null, taskListener, null, null);
 
@@ -97,13 +101,13 @@ public class LocalSCMListenerTest {
         doReturn(job).when(run).getParent();
         doReturn(singletonList(bitbucketSCM)).when(job).getSCMs();
         when(gitSCM.getKey()).thenReturn("repo-key");
+        BitbucketRevisionAction revisionAction = new BitbucketRevisionAction(scmRepository, "branchName", "myCommit");
+        when(run.getAction(BitbucketRevisionAction.class))
+                .thenReturn(revisionAction);
 
         listener.onCheckout(run, gitSCM, null, taskListener, null, null);
 
-        verify(buildStatusPoster).postBuildStatus(
-                argThat(revision ->
-                        scmRepository.equals(revision.getBitbucketSCMRepo())),
-                eq(run), eq(taskListener));
+        verify(buildStatusPoster).postBuildStatus(eq(revisionAction), eq(run), eq(taskListener));
     }
 
     @Test
@@ -123,6 +127,9 @@ public class LocalSCMListenerTest {
         doReturn(true).when(listener).filterSource(gitSCM, bbScmSource);
         when(branchSource.getSource()).thenReturn(bbScmSource);
         when(gitSCM.getKey()).thenReturn("repo-key");
+        BitbucketRevisionAction revisionAction = new BitbucketRevisionAction(scmRepository, "branchName", "myCommit");
+        when(run.getAction(BitbucketRevisionAction.class))
+                .thenReturn(revisionAction);
 
         listener.onCheckout(run, gitSCM, null, taskListener, null, null);
 

@@ -28,6 +28,7 @@ public class JenkinsProjectHandler {
 
     public static final String MASTER_BRANCH_PATTERN = "**/master";
     public static final int DEFAULT_WAIT_TIME = 100;
+    public static final int MAX_WAIT_TIME = 30_000;
 
     private final BitbucketJenkinsRule bbJenkinsRule;
     private final List<Item> items = new ArrayList<>();
@@ -102,9 +103,14 @@ public class JenkinsProjectHandler {
         Future<WorkflowRun> startCondition = master.scheduleBuild2(0).getStartCondition();
         WorkflowRun workflowRun = startCondition.get(1, TimeUnit.MINUTES);
 
-        while (!workflowRun.equals(master.getLastSuccessfulBuild())) {
+        int totalWaitTime = 0;
+        while (!workflowRun.equals(master.getLastSuccessfulBuild()) && totalWaitTime < MAX_WAIT_TIME) {
             System.out.println("Waiting for workflow run to finish");
+            totalWaitTime += DEFAULT_WAIT_TIME;
             Thread.sleep(DEFAULT_WAIT_TIME);
+        }
+        if (totalWaitTime >= MAX_WAIT_TIME) {
+            throw new RuntimeException("Timed-out while waiting for run to finish.");
         }
 
         onBuildCompletion.accept(workflowRun);

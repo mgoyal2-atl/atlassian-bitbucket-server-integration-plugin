@@ -1,5 +1,6 @@
 package com.atlassian.bitbucket.jenkins.internal.scm;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
@@ -15,9 +16,9 @@ public class BitbucketSCMRepository {
     private final String serverId;
     private final String mirrorName;
 
-    public BitbucketSCMRepository(@Nullable String credentialsId, @Nullable String sshCredentialsId, String projectName, String projectKey,
-                                  String repositoryName, String repositorySlug, @Nullable String serverId,
-                                  String mirrorName) {
+    public BitbucketSCMRepository(@CheckForNull String credentialsId, @CheckForNull String sshCredentialsId,
+                                  String projectName, String projectKey, String repositoryName, String repositorySlug,
+                                  @CheckForNull String serverId, @CheckForNull String mirrorName) {
         this.credentialsId = credentialsId;
         this.sshCredentialsId = sshCredentialsId;
         this.projectName = projectName;
@@ -54,10 +55,12 @@ public class BitbucketSCMRepository {
         return repositorySlug;
     }
 
+    @CheckForNull
     public String getServerId() {
         return serverId;
     }
 
+    @CheckForNull
     public String getMirrorName() {
         return mirrorName;
     }
