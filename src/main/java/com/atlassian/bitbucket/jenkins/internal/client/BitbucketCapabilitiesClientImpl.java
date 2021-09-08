@@ -10,6 +10,7 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import okhttp3.HttpUrl;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import java.util.concurrent.TimeUnit;
 
@@ -33,13 +34,10 @@ public class BitbucketCapabilitiesClientImpl implements BitbucketCapabilitiesCli
         capabilitiesCache = Suppliers.memoizeWithExpiration(supplier, CAPABILITIES_CACHE_DURATION, TimeUnit.MILLISECONDS);
     }
 
+    @CheckForNull
     @Override
     public BitbucketCDCapabilities getCDCapabilities() {
-        BitbucketCDCapabilities capabilities = getCapabilitiesForKey(DEPLOYMENTS_CAPABILITY_KEY, BitbucketCDCapabilities.class);
-        if (capabilities == null) {
-            return new BitbucketCDCapabilities(emptySet());
-        }
-        return capabilities;
+        return getCapabilitiesForKey(DEPLOYMENTS_CAPABILITY_KEY, BitbucketCDCapabilities.class);
     }
 
     @Override
@@ -62,7 +60,7 @@ public class BitbucketCapabilitiesClientImpl implements BitbucketCapabilitiesCli
         if (events == null) {
             throw new BitbucketMissingCapabilityException(
                     "Remote Bitbucket Server does not support Webhooks. Make sure " +
-                    "Bitbucket server supports webhooks or correct version of it is installed.");
+                            "Bitbucket server supports webhooks or correct version of it is installed.");
         }
         return events;
     }
