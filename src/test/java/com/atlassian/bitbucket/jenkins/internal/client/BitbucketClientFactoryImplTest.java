@@ -13,7 +13,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import java.util.List;
 import java.util.Optional;
 
-import static com.atlassian.bitbucket.jenkins.internal.trigger.BitbucketWebhookEvent.REPO_REF_CHANGE;
+import static com.atlassian.bitbucket.jenkins.internal.trigger.events.BitbucketWebhookEvent.REPO_REF_CHANGE;
 import static com.atlassian.bitbucket.jenkins.internal.util.TestUtils.*;
 import static java.util.Collections.singletonMap;
 import static org.hamcrest.Matchers.equalTo;

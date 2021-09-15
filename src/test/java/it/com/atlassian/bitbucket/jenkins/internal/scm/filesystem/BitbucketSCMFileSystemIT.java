@@ -79,7 +79,7 @@ public class BitbucketSCMFileSystemIT {
     @Test
     public void testBuildPipelineSCM() throws Exception {
         WorkflowJob pipelineProject =
-                projectHandler.createPipelineJobWithBitbucketScm("testBuildPipelineSCM", "rep_1", "refs/heads/master");
+                projectHandler.createPipelineJobWithBitbucketScm("testBuildPipelineSCM", "project_1", "rep_1", "refs/heads/master");
         BitbucketSCM scm = (BitbucketSCM) ((CpsScmFlowDefinition) pipelineProject.getDefinition()).getScm();
         doReturn(Optional.of(validConfiguration)).when(pluginConfiguration).getServerById(eq(scm.getServerId()));
 
@@ -87,10 +87,12 @@ public class BitbucketSCMFileSystemIT {
         assertThat(fileSystem, Matchers.notNullValue());
         BitbucketSCMFile root = ((BitbucketSCMFile) fileSystem.getRoot());
         assertThat(root.getRef().get(), equalTo("refs/heads/master"));
+
+        verify(jenkinsToBitbucketCredentials).toBitbucketCredentials(any(String.class), eq(pipelineProject));
     }
 
     @Test
-    public void testBuildPipelineSCMInvalidServerConfiguration() throws Exception {
+    public void testBuildPipelineSCMInvalidServerConfiguration() {
         BitbucketSCM scm = mock(BitbucketSCM.class);
         doReturn("INVALID-CONFIG-ID").when(scm).getServerId();
         doReturn(Optional.of(invalidConfiguration)).when(pluginConfiguration).getServerById("INVALID-CONFIG-ID");
@@ -99,7 +101,7 @@ public class BitbucketSCMFileSystemIT {
     }
 
     @Test
-    public void testBuildPipelineSCMNoServerConfiguration() throws Exception {
+    public void testBuildPipelineSCMNoServerConfiguration() {
         BitbucketSCM scm = mock(BitbucketSCM.class);
         doReturn("ABSENT-SERVER-ID").when(scm).getServerId();
 
@@ -120,6 +122,8 @@ public class BitbucketSCMFileSystemIT {
         assertThat(fileSystem, Matchers.notNullValue());
         BitbucketSCMFile root = ((BitbucketSCMFile) fileSystem.getRoot());
         assertThat(root.getRef().get(), equalTo("refs/heads/master"));
+
+        verify(jenkinsToBitbucketCredentials).toBitbucketCredentials(any(String.class), eq(multiBranchProject));
     }
 
     @Test

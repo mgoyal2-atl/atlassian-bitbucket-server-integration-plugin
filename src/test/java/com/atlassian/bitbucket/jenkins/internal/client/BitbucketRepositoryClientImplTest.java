@@ -1,11 +1,8 @@
 package com.atlassian.bitbucket.jenkins.internal.client;
 
-import com.atlassian.bitbucket.jenkins.internal.credentials.BitbucketCredentials;
 import com.atlassian.bitbucket.jenkins.internal.fixture.FakeRemoteHttpServer;
 import com.atlassian.bitbucket.jenkins.internal.http.HttpRequestExecutorImpl;
-import com.atlassian.bitbucket.jenkins.internal.model.BitbucketBuildStatus;
-import com.atlassian.bitbucket.jenkins.internal.model.BitbucketCICapabilities;
-import com.atlassian.bitbucket.jenkins.internal.model.BuildState;
+import com.atlassian.bitbucket.jenkins.internal.model.*;
 import com.atlassian.bitbucket.jenkins.internal.model.deployment.BitbucketDeployment;
 import com.atlassian.bitbucket.jenkins.internal.model.deployment.BitbucketDeploymentEnvironment;
 import com.atlassian.bitbucket.jenkins.internal.model.deployment.BitbucketDeploymentEnvironmentType;
@@ -26,10 +23,19 @@ import org.mockito.junit.MockitoJUnitRunner;
 import java.io.IOException;
 import java.net.URI;
 import java.security.interfaces.RSAPrivateKey;
+import java.util.List;
 
+import static com.atlassian.bitbucket.jenkins.internal.credentials.BitbucketCredentials.ANONYMOUS_CREDENTIALS;
 import static com.atlassian.bitbucket.jenkins.internal.util.TestUtils.*;
+import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.assertEquals;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
+import static okhttp3.HttpUrl.parse;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.IsIterableContaining.hasItems;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -39,22 +45,79 @@ public class BitbucketRepositoryClientImplTest {
     private static final String PROJECT_KEY = "PROJECT_1";
     private static final String REPO_SLUG = "rep_1";
     private static final String REVISION = "bc891c29e289e373fbf8daff411480e8da6d5252";
+    private static final String WEBHOOK_URL = "%s/rest/api/1.0/projects/%s/repos/%s/pull-requests?withAttributes=false&withProperties=false&state=OPEN";
 
-    private final FakeRemoteHttpServer mockExecutor = new FakeRemoteHttpServer();
+    private final FakeRemoteHttpServer fakeRemoteHttpServer = new FakeRemoteHttpServer();
+    private final HttpRequestExecutor requestExecutor = new HttpRequestExecutorImpl(fakeRemoteHttpServer);
+    private final BitbucketRequestExecutor bitbucketRequestExecutor = new BitbucketRequestExecutor(BITBUCKET_BASE_URL,
+            requestExecutor, OBJECT_MAPPER, ANONYMOUS_CREDENTIALS);
+    private final BitbucketRepositoryClientImpl client = new BitbucketRepositoryClientImpl(bitbucketRequestExecutor,
+            PROJECT_KEY, REPO_SLUG);
+
     @Mock
     private BitbucketSCMRepository bitbucketSCMRepo;
     @Mock
     private BitbucketCICapabilities ciCapabilities;
-    private BitbucketRepositoryClientImpl repositoryClient;
 
     @Before
     public void setup() {
-        BitbucketRequestExecutor executor = new BitbucketRequestExecutor(BITBUCKET_BASE_URL,
-                new HttpRequestExecutorImpl(mockExecutor), OBJECT_MAPPER, BitbucketCredentials.ANONYMOUS_CREDENTIALS);
-        repositoryClient = new BitbucketRepositoryClientImpl(executor, PROJECT_KEY, REPO_SLUG);
         when(ciCapabilities.supportsRichBuildStatus()).thenReturn(false);
         when(bitbucketSCMRepo.getProjectKey()).thenReturn(PROJECT_KEY);
         when(bitbucketSCMRepo.getRepositorySlug()).thenReturn(REPO_SLUG);
+    }
+
+    @Test
+    public void testFetchingOfExistingOpenPullRequests() {
+        String response = readFileToString("/open-pull-requests.json");
+        String url = format(WEBHOOK_URL, BITBUCKET_BASE_URL, PROJECT_KEY, REPO_SLUG);
+        fakeRemoteHttpServer.mapUrlToResult(url, response);
+
+        List<BitbucketPullRequest> pullRequests = client.getPullRequests(BitbucketPullRequestState.OPEN).collect(toList());
+
+        assertThat(pullRequests.size(), is(equalTo(2)));
+        assertThat(pullRequests.stream().map(BitbucketPullRequest::getId).collect(toSet()), hasItems(new Long(96), new Long(97)));
+        assertThat(pullRequests.stream().map(BitbucketPullRequest::getState).collect(toSet()), hasItems(BitbucketPullRequestState.OPEN));
+    }
+
+    @Test
+    public void testFetchingOfExistingPullRequests() {
+        String response = readFileToString("/open-pull-requests.json");
+        String webhookUrl = "%s/rest/api/1.0/projects/%s/repos/%s/pull-requests?withAttributes=false&withProperties=false&state=ALL";
+        String url = format(webhookUrl, BITBUCKET_BASE_URL, PROJECT_KEY, REPO_SLUG);
+        fakeRemoteHttpServer.mapUrlToResult(url, response);
+
+        List<BitbucketPullRequest> pullRequests = client.getPullRequests().collect(toList());
+
+        assertThat(pullRequests.size(), is(equalTo(2)));
+        assertThat(pullRequests.stream().map(BitbucketPullRequest::getId).collect(toSet()), hasItems(new Long(96), new Long(97)));
+    }
+
+    @Test
+    public void testNextPageFetching() {
+        BitbucketRepositoryClientImpl.NextPageFetcherImpl fetcher = new BitbucketRepositoryClientImpl.NextPageFetcherImpl(parse(BITBUCKET_BASE_URL), bitbucketRequestExecutor);
+        int nextPageStart = 2;
+        fakeRemoteHttpServer.mapUrlToResult(
+                BITBUCKET_BASE_URL + "?start=" + nextPageStart,
+                readFileToString("/open-pull-requests-last-page.json"));
+        BitbucketPage<BitbucketPullRequest> firstPage = new BitbucketPage<>();
+        firstPage.setNextPageStart(nextPageStart);
+
+        BitbucketPage<BitbucketPullRequest> next = fetcher.next(firstPage);
+        List<BitbucketPullRequest> values = next.getValues();
+        assertEquals(next.getSize(), values.size());
+        assertTrue(next.getSize() > 0);
+
+        assertThat(values.stream().map(BitbucketPullRequest::getId).collect(toSet()), hasItems(new Long(96), new Long(97)));
+        assertThat(next.isLastPage(), is(true));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testLastPageDoesNotHaveNext() {
+        BitbucketRepositoryClientImpl.NextPageFetcherImpl fetcher = new BitbucketRepositoryClientImpl.NextPageFetcherImpl(parse(BITBUCKET_BASE_URL), bitbucketRequestExecutor);
+        BitbucketPage<BitbucketPullRequest> page = new BitbucketPage<>();
+        page.setLastPage(true);
+
+        fetcher.next(page);
     }
 
     @Test
@@ -75,13 +138,13 @@ public class BitbucketRepositoryClientImplTest {
                 .build()
                 .toString();
         String requestString = readFileToString("/build-status-request.json");
-        mockExecutor.mapPostRequestToResult(url, requestString, "");
+        fakeRemoteHttpServer.mapPostRequestToResult(url, requestString, "");
         Buffer b = new Buffer();
 
-        BitbucketBuildStatusClient client = repositoryClient.getBuildStatusClient(REVISION, ciCapabilities);
+        BitbucketBuildStatusClient client = this.client.getBuildStatusClient(REVISION, ciCapabilities);
         client.post(buildStatus);
 
-        Request clientRequest = mockExecutor.getRequest(url);
+        Request clientRequest = fakeRemoteHttpServer.getRequest(url);
         clientRequest.body().writeTo(b);
         assertEquals(StringUtils.deleteWhitespace(requestString), StringUtils.deleteWhitespace(b.readString(UTF_8)));
     }
@@ -107,14 +170,14 @@ public class BitbucketRepositoryClientImplTest {
                 .build()
                 .toString();
         String requestString = readFileToString("/build-status-request.json");
-        mockExecutor.mapPostRequestToResult(url, requestString, "");
+        fakeRemoteHttpServer.mapPostRequestToResult(url, requestString, "");
         Buffer b = new Buffer();
 
         BitbucketBuildStatusClient client =
-                repositoryClient.getBuildStatusClient(REVISION, bitbucketSCMRepo, ciCapabilities, keyPairProvider, displayURLProvider);
+                this.client.getBuildStatusClient(REVISION, bitbucketSCMRepo, ciCapabilities, keyPairProvider, displayURLProvider);
         client.post(buildStatus);
 
-        Request clientRequest = mockExecutor.getRequest(url);
+        Request clientRequest = fakeRemoteHttpServer.getRequest(url);
         clientRequest.body().writeTo(b);
         assertEquals(StringUtils.deleteWhitespace(requestString), StringUtils.deleteWhitespace(b.readString(UTF_8)));
     }
@@ -131,13 +194,13 @@ public class BitbucketRepositoryClientImplTest {
                 .build()
                 .toString();
         String requestString = readFileToString("/deployments/send_deployment_request.json");
-        mockExecutor.mapPostRequestToResult(url, requestString, "");
+        fakeRemoteHttpServer.mapPostRequestToResult(url, requestString, "");
         Buffer b = new Buffer();
 
-        BitbucketDeploymentClient client = repositoryClient.getDeploymentClient(REVISION);
+        BitbucketDeploymentClient client = this.client.getDeploymentClient(REVISION);
         client.post(deployment);
 
-        Request clientRequest = mockExecutor.getRequest(url);
+        Request clientRequest = fakeRemoteHttpServer.getRequest(url);
         clientRequest.body().writeTo(b);
         assertEquals(StringUtils.deleteWhitespace(requestString), StringUtils.deleteWhitespace(b.readString(UTF_8)));
     }

@@ -10,11 +10,11 @@ import it.com.atlassian.bitbucket.jenkins.internal.pageobjects.BitbucketScmConfi
 import okhttp3.HttpUrl;
 import org.jenkinsci.test.acceptance.SshKeyPair;
 import org.jenkinsci.test.acceptance.SshKeyPairGenerator;
-import org.jenkinsci.test.acceptance.po.Jenkins;
 import org.jenkinsci.test.acceptance.po.Job;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
@@ -70,6 +70,7 @@ public class BitbucketUtils {
         return new BitbucketRepository(forkId, forkName, project, forkSlug, forkHttpCloneUrl, forkSshCloneUrl);
     }
 
+    @SuppressWarnings("unchecked")
     public static PersonalAccessToken createPersonalAccessToken(String... permissions) {
         HashMap<String, Object> createTokenRequest = new HashMap<>();
         createTokenRequest.put("name", "BitbucketJenkinsRule-" + UUID.randomUUID());
@@ -92,6 +93,7 @@ public class BitbucketUtils {
         return new PersonalAccessToken(tokenResponse.path("id"), tokenResponse.path("token"));
     }
 
+    @SuppressWarnings("unchecked")
     public static BitbucketSshKeyPair createSshKeyPair() throws IOException {
         SshKeyPair keyPair = new SshKeyPairGenerator().get();
         Map<String, Object> createSshKeyRequest = new HashMap<>();
@@ -116,17 +118,18 @@ public class BitbucketUtils {
         return new BitbucketSshKeyPair(response.path("id"), keyPair.readPublicKey(), keyPair.readPrivateKey());
     }
 
-    public static Job createJobWithBitbucketScm(Jenkins jenkins, String bbsAdminCredsId, BitbucketSshKeyPair bbsSshCreds,
+    public static Job provideJobWithBitbucketScm(Job job, String bbsAdminCredsId, @Nullable BitbucketSshKeyPair bbsSshCreds,
                                                 String serverId, BitbucketRepository repository) {
-        Job job = jenkins.jobs.create();
         BitbucketScmConfig bitbucketScm = job.useScm(BitbucketScmConfig.class);
         bitbucketScm
                 .credentialsId(bbsAdminCredsId)
-                .sshCredentialsId(bbsSshCreds.getId())
                 .serverId(serverId)
                 .projectName(repository.getProject().getKey())
                 .repositoryName(repository.getSlug())
                 .anyBranch();
+        if (bbsSshCreds != null) {
+            bitbucketScm.sshCredentialsId(bbsSshCreds.getId());
+        }
         job.save();
 
         return job;
@@ -141,6 +144,42 @@ public class BitbucketUtils {
                 "/bitbucket/oauth/access-token", "/bbs-oauth/authorize", "/bitbucket/oauth/request-token");
 
         return applicationLinkUrl;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static void createPullRequest(String projectKey, String repoSlug, String sourceBranch) {
+        HashMap<String, Object> createPullRequestRequest = new HashMap<>();
+        HashMap<String, Object> fromRef = new HashMap<>();
+        HashMap<String, Object> project = new HashMap<>();
+        HashMap<String, Object> repository = new HashMap<>();
+        HashMap<String, Object> toRef = new HashMap<>();
+        project.put("key", projectKey);
+        repository.put("slug", repoSlug);
+        repository.put("project", project);
+        toRef.put("repository", repository);
+        toRef.put("id", "refs/heads/master");
+        fromRef.put("id", "refs/heads/" + sourceBranch);
+        createPullRequestRequest.put("title", "Test PR");
+        createPullRequestRequest.put("fromRef", fromRef);
+        createPullRequestRequest.put("toRef", toRef);
+
+        RestAssured
+                .given()
+                .log()
+                .ifValidationFails()
+                .auth()
+                .preemptive()
+                .basic(BITBUCKET_ADMIN_USERNAME, BITBUCKET_ADMIN_PASSWORD)
+                .contentType(ContentType.JSON)
+                .body(createPullRequestRequest)
+                .expect()
+                .statusCode(201)
+                .given()
+                .pathParam("projectKey", projectKey)
+                .pathParam("repositorySlug", repoSlug)
+                .when()
+                .post(BITBUCKET_BASE_URL + "/rest/api/1.0/projects/{projectKey}/repos/{repositorySlug}/pull-requests")
+                .getBody();
     }
 
     public static URL registerApplicationLink(String type, String name, String displayUrl, String rpcUrl) throws Exception {
