@@ -2,8 +2,10 @@ package com.atlassian.bitbucket.jenkins.internal.status;
 
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCM;
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCMRepository;
+import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCMRevisionAction;
 import hudson.EnvVars;
 import hudson.model.AbstractBuild;
+import hudson.model.FreeStyleBuild;
 import hudson.model.TaskListener;
 import hudson.plugins.git.GitSCM;
 import hudson.scm.SCM;
@@ -25,7 +27,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @RunWith(Silent.class)
-public class LocalSCMListenerTest {
+public class LegacySCMListenerTest {
 
     private final EnvVars ENV_VARS = new EnvVars();
     private final Map<String, String> BUILD_MAP = new HashMap<>();
@@ -41,7 +43,7 @@ public class LocalSCMListenerTest {
     @Mock
     private BitbucketSCM bitbucketSCM;
     private BitbucketSCMRepository scmRepository;
-    private LocalSCMListener listener;
+    private LegacySCMListener listener;
 
     @Before
     public void setup() throws Exception {
@@ -56,7 +58,7 @@ public class LocalSCMListenerTest {
         RemoteConfig rc = new RemoteConfig(new Config(), "origin");
         when(gitSCM.getRepositories()).thenReturn(singletonList(rc));
         when(taskListener.getLogger()).thenReturn(System.out);
-        listener = spy(new LocalSCMListener(buildStatusPoster));
+        listener = spy(new LegacySCMListener(buildStatusPoster));
 
         // Build the environment
         ENV_VARS.putIfNotNull(BBS_CREDENTIALS_ID, "credentialsId");
@@ -78,6 +80,18 @@ public class LocalSCMListenerTest {
         listener.onCheckout(run, scm, null, taskListener, null, null);
 
         verify(buildStatusPoster, never()).postBuildStatus(any(), any(), any());
+        verify(run, never()).addAction(any());
+    }
+
+    @Test
+    public void testOnCheckoutWithUpdatedBuildDoesNotPostBuildStatus() {
+        FreeStyleBuild build = mock(FreeStyleBuild.class);
+        when(build.getAction(BitbucketSCMRevisionAction.class)).thenReturn(mock(BitbucketSCMRevisionAction.class));
+
+        listener.onCheckout(build, bitbucketSCM, null, taskListener, null, null);
+
+        verify(buildStatusPoster, never()).postBuildStatus(any(), any(), any());
+        verify(run, never()).addAction(any());
     }
 
     @Test
@@ -87,6 +101,7 @@ public class LocalSCMListenerTest {
         listener.onCheckout(run, bitbucketSCM, null, taskListener, null, null);
 
         verify(buildStatusPoster, never()).postBuildStatus(any(), any(), any());
+        verify(run, never()).addAction(any());
     }
 
     @Test
@@ -96,6 +111,7 @@ public class LocalSCMListenerTest {
         listener.onCheckout(run, bitbucketSCM, null, taskListener, null, null);
 
         verify(buildStatusPoster, never()).postBuildStatus(any(), any(), any());
+        verify(run, never()).addAction(any());
     }
 
     @Test
@@ -106,6 +122,8 @@ public class LocalSCMListenerTest {
                 argThat(revision ->
                         scmRepository.equals(revision.getBitbucketSCMRepo())),
                 eq(run), eq(taskListener));
+        verify(run).addAction(argThat(action -> action instanceof BitbucketSCMRevisionAction &&
+                scmRepository.equals(((BitbucketSCMRevisionAction) action).getBitbucketSCMRepo())));
     }
 
     @Test
@@ -116,6 +134,8 @@ public class LocalSCMListenerTest {
                 argThat(revision ->
                         scmRepository.equals(revision.getBitbucketSCMRepo())),
                 eq(run), eq(taskListener));
+        verify(run).addAction(argThat(action -> action instanceof BitbucketSCMRevisionAction &&
+                scmRepository.equals(((BitbucketSCMRevisionAction) action).getBitbucketSCMRepo())));
     }
 
     @Test
@@ -125,6 +145,7 @@ public class LocalSCMListenerTest {
         listener.onCheckout(run, bitbucketSCM, null, taskListener, null, null);
 
         verify(buildStatusPoster, never()).postBuildStatus(any(), any(), any());
+        verify(run, never()).addAction(any());
     }
 
 }
