@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
         <version>4.17</version>
-        <relativePath/>
+        <relativePath />
     </parent>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>atlassian-bitbucket-server-integration</artifactId>
-    <version>3.0.0-SNAPSHOT</version>
+    <version>3.0.0</version>
     <packaging>hpi</packaging>
     <properties>
         <bitbucket.version>5.5.9</bitbucket.version>
@@ -409,9 +408,7 @@
                             <tasks>
                                 <echo>Copying across symlink</echo>
                                 <copy todir="${basedir}/src/main/resources/com/atlassian/bitbucket/jenkins/internal/scm/BitbucketSCMStep">
-                                    <fileset
-                                            dir="${basedir}/src/main/resources/com/atlassian/bitbucket/jenkins/internal/scm/BitbucketSCM"
-                                            includes="**"/>
+                                    <fileset dir="${basedir}/src/main/resources/com/atlassian/bitbucket/jenkins/internal/scm/BitbucketSCM" includes="**" />
                                 </copy>
                             </tasks>
                         </configuration>
@@ -425,7 +422,7 @@
                         <configuration>
                             <tasks>
                                 <echo>Creating artifacts dir</echo>
-                                <mkdir dir="${basedir}/target/artifacts"/>
+                                <mkdir dir="${basedir}/target/artifacts" />
                             </tasks>
                         </configuration>
                     </execution>
@@ -439,7 +436,7 @@
                             <tasks>
                                 <echo>Publishing Bitbucket logs to the artifacts directory</echo>
                                 <copy todir="${basedir}/target/artifacts" failonerror="false">
-                                    <fileset dir="${basedir}/target/bitbucket/home/log" includes="**"/>
+                                    <fileset dir="${basedir}/target/bitbucket/home/log" includes="**" />
                                 </copy>
                             </tasks>
                         </configuration>
@@ -588,7 +585,7 @@
         <developerConnection>scm:git:git@github.com:jenkinsci/atlassian-bitbucket-server-integration-plugin.git
         </developerConnection>
         <url>http://github.com/jenkinsci/atlassian-bitbucket-server-integration-plugin</url>
-        <tag>HEAD</tag>
+        <tag>atlassian-bitbucket-server-integration-3.0.0</tag>
     </scm>
 
     <repositories>
