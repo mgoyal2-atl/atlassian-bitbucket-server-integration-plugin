@@ -4,6 +4,7 @@ import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCM;
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCMRepository;
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCMSource;
 import com.google.common.annotations.VisibleForTesting;
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.model.ItemGroup;
@@ -14,14 +15,12 @@ import hudson.model.listeners.SCMListener;
 import hudson.plugins.git.GitSCM;
 import hudson.scm.SCM;
 import hudson.scm.SCMRevisionState;
-import jenkins.branch.BranchSource;
-import jenkins.branch.MultiBranchProject;
-import jenkins.triggers.SCMTriggerItem;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 
 import javax.annotation.CheckForNull;
 import javax.inject.Inject;
 import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -46,6 +45,17 @@ public class LocalSCMListener extends SCMListener {
         if (!(scm instanceof GitSCM || scm instanceof BitbucketSCM)) {
             return;
         }
+        BitbucketSCMRepository bitbucketSCMRepository;
+        try {
+            EnvVars environment = build.getEnvironment(listener);
+            bitbucketSCMRepository = BitbucketSCMRepository.fromEnvironment(environment);
+        } catch (IOException | InterruptedException e) {
+            listener.getLogger().println("Error reading the environment in LocalSCMListener: Bitbucket Server build statuses will not be sent");
+            return;
+        }
+        if (bitbucketSCMRepository == null) {
+            return;
+        }
 
         //case 1 - bb_checkout step in the script (pipeline or groovy)
         if (scm instanceof BitbucketSCM) {
@@ -53,42 +63,9 @@ public class LocalSCMListener extends SCMListener {
             return;
         }
 
-        if (isWorkflowRun(build)) {
-            // Case 2 - Script does not have explicit checkout statement. Proceed to inspect SCM on item
-            Job<?, ?> job = build.getParent();
-            GitSCM gitScm = (GitSCM) scm;
-            ItemGroup<?> parent = getJobParent(job);
-            if (parent instanceof MultiBranchProject) { // Case 2.1 - Multi branch workflow job
-                MultiBranchProject<?, ?> multiBranchProject = (MultiBranchProject<?, ?>) parent;
-                multiBranchProject
-                        .getSources()
-                        .stream()
-                        .map(BranchSource::getSource)
-                        .filter(BitbucketSCMSource.class::isInstance)
-                        .map(BitbucketSCMSource.class::cast)
-                        .filter(bbsSource ->
-                                filterSource(gitScm, bbsSource))
-                        .findFirst()
-                        .ifPresent(scmSource ->
-                                handleCheckout(scmSource.getBitbucketSCMRepository(), gitScm, build, listener));
-            } else { // Case 2.2 - Part of pipeline run
-                // Handle only SCM jobs.
-                if (job instanceof SCMTriggerItem) {
-                    SCMTriggerItem scmItem = (SCMTriggerItem) job;
-                    scmItem.getSCMs()
-                            .stream()
-                            .filter(BitbucketSCM.class::isInstance)
-                            .map(BitbucketSCM.class::cast)
-                            .filter(bScm -> {
-                                GitSCM bGitScm = bScm.getGitSCM();
-                                return bGitScm != null &&
-                                       Objects.equals(bGitScm.getKey(), scm.getKey());
-                            })
-                            .findFirst()
-                            .ifPresent(bScm -> handleCheckout(bScm, gitScm, build, listener));
-                }
-            }
-        }
+        // Case 2 - Script does not have explicit checkout statement. Proceed to inspect SCM on item
+        GitSCM gitScm = (GitSCM) scm;
+        handleCheckout(bitbucketSCMRepository, gitScm, build, listener);
     }
 
     @VisibleForTesting
