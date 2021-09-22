@@ -9,7 +9,6 @@ import hudson.plugins.git.GitSCM;
 import hudson.scm.SCM;
 import jenkins.branch.BranchSource;
 import jenkins.branch.MultiBranchProject;
-import jenkins.triggers.SCMTriggerItem;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 
 import java.io.IOException;
@@ -30,8 +29,9 @@ public class BitbucketSCMEnvironmentContributor extends EnvironmentContributor {
         }
         if (job instanceof WorkflowJob) {
             // Case 2 - Not a freestyle job. Proceed to inspect SCM on item
-            SCM scm = ((WorkflowJob) job).getTypicalSCM();
-            if (scm == null) {
+            WorkflowJob workflowJob = (WorkflowJob) job;
+            SCM scm = workflowJob.getTypicalSCM();
+            if (!(scm instanceof GitSCM || scm instanceof BitbucketSCM)) {
                 return;
             }
             if (scm instanceof BitbucketSCM) {
@@ -40,8 +40,8 @@ public class BitbucketSCMEnvironmentContributor extends EnvironmentContributor {
                 return;
             }
             ItemGroup<?> parent = getJobParent(job);
-            if (parent instanceof MultiBranchProject && scm instanceof GitSCM) { // Case 3.1 - Multi branch workflow job
-                GitSCM gitScm = (GitSCM) scm;
+            GitSCM gitScm = (GitSCM) scm;
+            if (parent instanceof MultiBranchProject) { // Case 3.1 - Multi branch workflow job
                 MultiBranchProject<?, ?> multiBranchProject = (MultiBranchProject<?, ?>) parent;
                 multiBranchProject
                         .getSources()
@@ -50,13 +50,17 @@ public class BitbucketSCMEnvironmentContributor extends EnvironmentContributor {
                         .filter(BitbucketSCMSource.class::isInstance)
                         .map(BitbucketSCMSource.class::cast)
                         .filter(bbsSource ->
-                                filterSource(gitScm, bbsSource))
+                                // The assumption is the remote URL specified in GitSCM should be same as remote URL
+                                // specified in Bitbucket Source.
+                                gitScm.getUserRemoteConfigs()
+                                        .stream()
+                                        .anyMatch(userRemoteConfig ->
+                                                Objects.equals(userRemoteConfig.getUrl(), bbsSource.getRemote())))
                         .findFirst()
                         .ifPresent(scmSource -> scmSource.getBitbucketSCMRepository().buildEnvironment(envs));
             } else { // Case 3.2 - Part of pipeline run
                 // Handle only SCM jobs.
-                SCMTriggerItem scmItem = (SCMTriggerItem) job;
-                scmItem.getSCMs()
+                workflowJob.getSCMs()
                         .stream()
                         .filter(BitbucketSCM.class::isInstance)
                         .map(BitbucketSCM.class::cast)
@@ -71,20 +75,12 @@ public class BitbucketSCMEnvironmentContributor extends EnvironmentContributor {
         }
     }
 
+    /**
+     * {@link Job#getParent()} uses {@code @WithBridgeMethods(value=Jenkins.class,castRequired=true)} which is
+     * problematic when trying to mock the parent.
+     */
     @VisibleForTesting
     ItemGroup<?> getJobParent(Job<?, ?> job) {
         return job.getParent();
-    }
-
-    /**
-     * The assumption is the remote URL specified in GitSCM should be same as remote URL specified in
-     * Bitbucket Source.
-     */
-    @VisibleForTesting
-    boolean filterSource(GitSCM gitScm, BitbucketSCMSource bbsSource) {
-        return gitScm.getUserRemoteConfigs()
-                .stream()
-                .anyMatch(userRemoteConfig ->
-                        Objects.equals(userRemoteConfig.getUrl(), bbsSource.getRemote()));
     }
 }
