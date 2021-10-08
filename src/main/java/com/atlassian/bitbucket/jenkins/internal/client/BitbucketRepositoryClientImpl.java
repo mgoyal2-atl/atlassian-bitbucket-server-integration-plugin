@@ -2,10 +2,7 @@ package com.atlassian.bitbucket.jenkins.internal.client;
 
 import com.atlassian.bitbucket.jenkins.internal.client.paging.BitbucketPageStreamUtil;
 import com.atlassian.bitbucket.jenkins.internal.client.paging.NextPageFetcher;
-import com.atlassian.bitbucket.jenkins.internal.model.BitbucketPage;
-import com.atlassian.bitbucket.jenkins.internal.model.BitbucketPullRequest;
-import com.atlassian.bitbucket.jenkins.internal.model.BitbucketPullRequestState;
-import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRepository;
+import com.atlassian.bitbucket.jenkins.internal.model.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import okhttp3.HttpUrl;
 
@@ -45,6 +42,11 @@ public class BitbucketRepositoryClientImpl implements BitbucketRepositoryClient 
     }
 
     @Override
+    public BitbucketRef getDefaultBranch() {
+        return bitbucketRequestExecutor.makeGetRequest(getDefaultBranchUrl().build(), BitbucketRef.class).getBody();
+    }
+
+    @Override
     public BitbucketWebhookClient getWebhookClient() {
         return new BitbucketWebhookClientImpl(bitbucketRequestExecutor, projectKey, repositorySlug);
     }
@@ -71,6 +73,12 @@ public class BitbucketRepositoryClientImpl implements BitbucketRepositoryClient 
                 .addPathSegment(projectKey)
                 .addPathSegment("repos")
                 .addPathSegment(repositorySlug);
+    }
+
+    private HttpUrl.Builder getDefaultBranchUrl() {
+        return getRepositoryUrl()
+                .addPathSegment("branches")
+                .addPathSegment("default");
     }
 
     static class NextPageFetcherImpl implements NextPageFetcher<BitbucketPullRequest> {

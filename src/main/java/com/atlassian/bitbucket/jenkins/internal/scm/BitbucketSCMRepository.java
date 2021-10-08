@@ -1,6 +1,10 @@
 package com.atlassian.bitbucket.jenkins.internal.scm;
 
+import org.apache.commons.lang3.StringUtils;
+
 import javax.annotation.Nullable;
+
+import java.util.Objects;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
@@ -26,6 +30,30 @@ public class BitbucketSCMRepository {
         this.repositorySlug = repositorySlug;
         this.serverId = serverId;
         this.mirrorName = mirrorName;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(credentialsId, sshCredentialsId, projectKey, projectName, repositoryName, repositorySlug, serverId, mirrorName);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        BitbucketSCMRepository that = (BitbucketSCMRepository) o;
+        return StringUtils.equals(credentialsId, that.credentialsId) &&
+               StringUtils.equals(sshCredentialsId, that.sshCredentialsId) &&
+               StringUtils.equals(projectKey, that.projectKey) &&
+               StringUtils.equals(projectName, that.projectName) &&
+               StringUtils.equals(repositoryName, that.repositoryName) &&
+               StringUtils.equals(repositorySlug, that.repositorySlug) &&
+               StringUtils.equals(serverId, that.serverId) &&
+               StringUtils.equals(mirrorName, that.mirrorName);
     }
 
     @Nullable

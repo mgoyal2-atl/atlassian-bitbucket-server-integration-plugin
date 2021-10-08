@@ -3,6 +3,7 @@ package com.atlassian.bitbucket.jenkins.internal.client;
 import com.atlassian.bitbucket.jenkins.internal.client.exception.*;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketPullRequest;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketPullRequestState;
+import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRef;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRepository;
 
 import java.util.stream.Stream;
@@ -12,6 +13,20 @@ import java.util.stream.Stream;
  * source code.
  */
 public interface BitbucketRepositoryClient {
+
+    /**
+     * Retrieves the default branch for the client repo
+     *
+     * @return a ref representing the default branch
+     * @throws AuthorizationException     if the credentials did not allow access to the given url
+     * @throws BadRequestException        if the request was malformed and thus rejected by the server
+     * @throws BitbucketClientException   for all errors not already captured
+     * @throws ConnectionFailureException if the server did not respond
+     * @throws NotFoundException          if the requested url does not exist, or if the repository is empty
+     * @throws NoContentException         if the repository does not have a default branch configured
+     * @throws ServerErrorException       if the server failed to process the request
+     */
+    BitbucketRef getDefaultBranch();
 
     /**
      * Returns a client for getting file content and directory information on paths in a repository.

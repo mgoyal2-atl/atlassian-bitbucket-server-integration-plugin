@@ -3,12 +3,15 @@ package com.atlassian.bitbucket.jenkins.internal.scm;
 import com.atlassian.bitbucket.jenkins.internal.client.BitbucketClientFactory;
 import com.atlassian.bitbucket.jenkins.internal.client.BitbucketClientFactoryProvider;
 import com.atlassian.bitbucket.jenkins.internal.client.exception.BitbucketClientException;
+import com.atlassian.bitbucket.jenkins.internal.client.exception.NoContentException;
 import com.atlassian.bitbucket.jenkins.internal.client.exception.NotFoundException;
 import com.atlassian.bitbucket.jenkins.internal.credentials.BitbucketCredentials;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketProject;
+import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRef;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRepository;
 import com.atlassian.bitbucket.jenkins.internal.model.RepositoryState;
 
+import javax.annotation.Nullable;
 import java.util.logging.Logger;
 
 import static com.atlassian.bitbucket.jenkins.internal.client.BitbucketSearchHelper.getProjectByNameOrKey;
@@ -24,6 +27,25 @@ public class BitbucketScmHelper {
                               BitbucketClientFactoryProvider bitbucketClientFactoryProvider,
                               BitbucketCredentials credentials) {
         clientFactory = bitbucketClientFactoryProvider.getClient(bitbucketBaseUrl, credentials);
+    }
+
+    @Nullable
+    public BitbucketRef getDefaultBranch(String projectKey, String repositorySlug) {
+        try {
+            return clientFactory.getProjectClient(projectKey)
+                    .getRepositoryClient(repositorySlug)
+                    .getDefaultBranch();
+        } catch (NotFoundException nfe) {
+            LOGGER.info("Error getting the default branch: Cannot find the repository " + projectKey + "/" + repositorySlug);
+        } catch (NoContentException nce) {
+            LOGGER.info("Error getting the default branch: Repository " + projectKey + "/" + repositorySlug + " is empty");
+        } catch (BitbucketClientException bce) {
+            // Something went wrong with the request to Bitbucket
+            LOGGER.info(
+                    "Error getting the default branch: Something went wrong when trying to contact Bitbucket Server: " +
+                    bce.getMessage());
+        }
+        return null;
     }
 
     public BitbucketRepository getRepository(String projectName, String repositoryName) {
