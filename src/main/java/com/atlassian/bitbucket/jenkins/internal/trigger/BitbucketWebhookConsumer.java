@@ -6,6 +6,7 @@ import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCM;
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCMRepository;
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCMSource;
 import com.atlassian.bitbucket.jenkins.internal.trigger.events.*;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.plugins.git.GitSCM;
 import hudson.scm.SCM;
 import hudson.security.ACL;
@@ -298,6 +299,15 @@ public class BitbucketWebhookConsumer {
         @Override
         public boolean isMatch(SCM scm) {
             return false; //see comment on the overriden method
+        }
+
+        @Override
+        public boolean isMatch(@NonNull SCMSource source) {
+            if (!(source instanceof BitbucketSCMSource)) {
+                return false;
+            }
+            BitbucketSCMSource bitbucketSCMSource = (BitbucketSCMSource) source;
+            return bitbucketSCMSource.isEventApplicable(this);
         }
     }
 

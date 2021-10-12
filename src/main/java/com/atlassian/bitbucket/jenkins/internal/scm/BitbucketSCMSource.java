@@ -233,6 +233,25 @@ public class BitbucketSCMSource extends SCMSource {
         return getBitbucketSCMRepository().getSshCredentialsId();
     }
 
+    public boolean isEventApplicable(@CheckForNull SCMHeadEvent<?> event) {
+        if (getOwner() instanceof ComputedFolder && event != null) {
+            ComputedFolder<?> owner = (ComputedFolder<?>) getOwner();
+            Object payload = event.getPayload();
+            if (payload instanceof AbstractWebhookEvent) {
+                AbstractWebhookEvent webhookEvent = (AbstractWebhookEvent) payload;
+
+                return owner.getTriggers().values().stream()
+                        .filter(trg -> trg instanceof BitbucketWebhookMultibranchTrigger)
+                        .anyMatch(trig -> (
+                                (BitbucketWebhookMultibranchTrigger) trig).isApplicableForEventType(webhookEvent)
+                        );
+            }
+        }
+        // We only support multibranch project, and SCMHeadEvents are always treated as non-null (see MultiBranchProject.onScmHeadEvent())
+        // So null events or non-computed folders we treat as irrelevant
+        return false;
+    }
+
     public boolean isValid() {
         return getMirrorName() != null && isNotBlank(getProjectKey()) && isNotBlank(getProjectName()) &&
                isNotBlank(getRemote()) && isNotBlank(getRepositoryName()) && isNotBlank(getRepositorySlug()) &&
@@ -263,21 +282,8 @@ public class BitbucketSCMSource extends SCMSource {
     protected void retrieve(@CheckForNull SCMSourceCriteria criteria, SCMHeadObserver observer,
                             @CheckForNull SCMHeadEvent<?> event,
                             TaskListener listener) throws IOException, InterruptedException {
-        if (getOwner() instanceof ComputedFolder && event != null) {
-            ComputedFolder<?> owner = (ComputedFolder<?>) getOwner();
-            Object payload = event.getPayload();
-            if (payload instanceof AbstractWebhookEvent) {
-                AbstractWebhookEvent webhookEvent = (AbstractWebhookEvent) payload;
-                boolean eventApplicable = owner.getTriggers().values().stream()
-                        .filter(trg -> trg instanceof BitbucketWebhookMultibranchTrigger)
-                        .anyMatch(trig -> (
-                                (BitbucketWebhookMultibranchTrigger) trig).isApplicableForEventType(webhookEvent)
-                        );
-                if (eventApplicable) {
-                    getGitSCMSource().accessibleRetrieve(criteria, observer, event, listener);
-                }
-                return;
-            }
+        if (!isEventApplicable(event)) {
+            LOGGER.warning("Performing retrieve for project with no relevant trigger"); //spruce this up a bit in review
         }
         getGitSCMSource().accessibleRetrieve(criteria, observer, event, listener);
     }
