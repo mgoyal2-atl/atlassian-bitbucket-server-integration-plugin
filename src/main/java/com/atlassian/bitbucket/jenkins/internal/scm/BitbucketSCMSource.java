@@ -282,8 +282,12 @@ public class BitbucketSCMSource extends SCMSource {
     protected void retrieve(@CheckForNull SCMSourceCriteria criteria, SCMHeadObserver observer,
                             @CheckForNull SCMHeadEvent<?> event,
                             TaskListener listener) throws IOException, InterruptedException {
-        if (!isEventApplicable(event)) {
-            LOGGER.warning("Performing retrieve for project with no relevant trigger"); //spruce this up a bit in review
+        if (!isEventApplicable(event) && event != null) {
+            String projectName = getOwner() == null ? "" : getOwner().getFullName();
+            String eventType = event.getPayload() instanceof AbstractWebhookEvent ?
+                    ((AbstractWebhookEvent) event.getPayload()).getEventKey() : "";
+            LOGGER.info(format("Performing retrieve for project %s with no relevant trigger for %s event",
+                    projectName, eventType));
         }
         getGitSCMSource().accessibleRetrieve(criteria, observer, event, listener);
     }
