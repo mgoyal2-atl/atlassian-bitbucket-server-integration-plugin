@@ -283,7 +283,8 @@ public class BitbucketSCMSource extends SCMSource {
                             @CheckForNull SCMHeadEvent<?> event,
                             TaskListener listener) throws IOException, InterruptedException {
         if (!isEventApplicable(event) && event != null) {
-            String projectName = getOwner() == null ? "" : getOwner().getFullName();
+            SCMSourceOwner owner = getOwner();
+            String projectName = owner == null ? "" : owner.getFullName();
             String eventType = event.getPayload() instanceof AbstractWebhookEvent ?
                     ((AbstractWebhookEvent) event.getPayload()).getEventKey() : "";
             LOGGER.info(format("Performing retrieve for project %s with no relevant trigger for %s event",
