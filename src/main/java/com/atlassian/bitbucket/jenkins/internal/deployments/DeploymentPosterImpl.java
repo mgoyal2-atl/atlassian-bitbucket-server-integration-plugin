@@ -11,7 +11,6 @@ import com.atlassian.bitbucket.jenkins.internal.credentials.JenkinsToBitbucketCr
 import com.atlassian.bitbucket.jenkins.internal.model.deployment.BitbucketCDCapabilities;
 import com.atlassian.bitbucket.jenkins.internal.model.deployment.BitbucketDeployment;
 import com.atlassian.bitbucket.jenkins.internal.model.deployment.BitbucketDeploymentEnvironment;
-import com.atlassian.bitbucket.jenkins.internal.provider.JenkinsProvider;
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCMRepository;
 import com.atlassian.bitbucket.jenkins.internal.scm.BitbucketSCMRepositoryHelper;
 import com.cloudbees.plugins.credentials.Credentials;
@@ -24,7 +23,6 @@ import hudson.model.listeners.SCMListener;
 import hudson.plugins.git.GitSCM;
 import hudson.scm.SCM;
 import hudson.scm.SCMRevisionState;
-import hudson.tasks.Publisher;
 
 import javax.annotation.CheckForNull;
 import javax.inject.Inject;
@@ -46,7 +44,6 @@ public class DeploymentPosterImpl extends SCMListener implements DeploymentPoste
 
     private BitbucketClientFactoryProvider bitbucketClientFactoryProvider;
     private BitbucketDeploymentFactory bitbucketDeploymentFactory;
-    private JenkinsProvider jenkinsProvider;
     private JenkinsToBitbucketCredentials jenkinsToBitbucketCredentials;
     private BitbucketPluginConfiguration pluginConfiguration;
     private BitbucketSCMRepositoryHelper scmRunHelper;
@@ -57,13 +54,12 @@ public class DeploymentPosterImpl extends SCMListener implements DeploymentPoste
 
     @Inject
     public DeploymentPosterImpl(BitbucketClientFactoryProvider bitbucketClientFactoryProvider,
-                                BitbucketDeploymentFactory bitbucketDeploymentFactory, JenkinsProvider jenkinsProvider,
+                                BitbucketDeploymentFactory bitbucketDeploymentFactory,
                                 JenkinsToBitbucketCredentials jenkinsToBitbucketCredentials,
                                 BitbucketPluginConfiguration pluginConfiguration,
                                 BitbucketSCMRepositoryHelper scmRunHelper) {
         this.bitbucketClientFactoryProvider = bitbucketClientFactoryProvider;
         this.bitbucketDeploymentFactory = bitbucketDeploymentFactory;
-        this.jenkinsProvider = jenkinsProvider;
         this.jenkinsToBitbucketCredentials = jenkinsToBitbucketCredentials;
         this.pluginConfiguration = pluginConfiguration;
         this.scmRunHelper = scmRunHelper;
@@ -73,7 +69,7 @@ public class DeploymentPosterImpl extends SCMListener implements DeploymentPoste
     public void onCheckout(Run<?, ?> build, SCM scm, FilePath workspace, TaskListener listener,
                            @CheckForNull File changelogFile,
                            @CheckForNull SCMRevisionState pollingBaseline) {
-        DeployedToEnvironmentNotifierStep deploymentPublisher = getDeploymentPublisher(build);
+        DeploymentNotifier deploymentPublisher = getDeploymentPublisher(build);
         if (deploymentPublisher == null) {
             return;
         }
@@ -84,7 +80,7 @@ public class DeploymentPosterImpl extends SCMListener implements DeploymentPoste
         BitbucketSCMRepository repo = scmRunHelper.getRepository(build, scm);
         // If there's no repo in the environment, then we don't know where to send the build status to
         if (repo == null) {
-            listener.getLogger().println("DeploymentPosterImpl: BitbucketSCMRepository information not present on the SCM");
+            listener.getLogger().println("Could not post deployment information: Bitbucket repository information not present on the SCM");
             return;
         }
 
@@ -93,11 +89,11 @@ public class DeploymentPosterImpl extends SCMListener implements DeploymentPoste
         try {
             revisionSha1 = build.getEnvironment(listener).get(GitSCM.GIT_COMMIT);
         } catch (IOException | InterruptedException e) {
-            listener.getLogger().println("DeploymentPosterImpl: Error reading the environment variables");
+            listener.getLogger().println("Could not post deployment information: Error reading the environment variables");
             return;
         }
         if (isBlank(revisionSha1)) {
-            listener.getLogger().println("DeploymentPosterImpl: Git commit information not present in the environment variables");
+            listener.getLogger().println("Could not post deployment information: Git commit information not present in the environment variables");
             return;
         }
 
@@ -126,7 +122,7 @@ public class DeploymentPosterImpl extends SCMListener implements DeploymentPoste
             return;
         }
 
-        taskListener.getLogger().println(format("Sending notification of %s to %s on commit %s",
+        taskListener.getLogger().println(format("Sending notification of %s deployment to %s on commit %s",
                 deployment.getState().name(), server.getServerName(), revisionSha));
         try {
             clientFactory.getProjectClient(repository.getProjectKey())
@@ -149,19 +145,12 @@ public class DeploymentPosterImpl extends SCMListener implements DeploymentPoste
     }
 
     @CheckForNull
-    private DeployedToEnvironmentNotifierStep getDeploymentPublisher(Run<?, ?> build) {
+    private DeploymentNotifier getDeploymentPublisher(Run<?, ?> build) {
         if (!(build instanceof FreeStyleBuild)) {
-            // For now we only support freestyle builds
+            // Notifiers only support freestyle builds
             return null;
         }
         FreeStyleBuild freeStyleBuild = (FreeStyleBuild) build;
-        DeployedToEnvironmentNotifierStep.DescriptorImpl publisherDescriptor = jenkinsProvider.get()
-                .getDescriptorByType(DeployedToEnvironmentNotifierStep.DescriptorImpl.class);
-        Publisher publisher = freeStyleBuild.getParent().getPublisher(publisherDescriptor);
-        if (!(publisher instanceof DeployedToEnvironmentNotifierStep)) {
-            // Not a deployment
-            return null;
-        }
-        return (DeployedToEnvironmentNotifierStep) publisher;
+        return freeStyleBuild.getParent().getPublishersList().get(DeploymentNotifier.class);
     }
 }
