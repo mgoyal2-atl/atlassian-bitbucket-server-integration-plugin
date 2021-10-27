@@ -9,6 +9,9 @@ import static org.apache.commons.lang3.StringUtils.stripToNull;
 
 public class BitbucketDeploymentClientImpl implements BitbucketDeploymentClient {
 
+    private static final String BBS_CICD_SOURCE_HEADER_KEY = "BBS-CICD-Source";
+    private static final String BBS_CICD_SOURCE_HEADER_VALUE = "JENKINS";
+
     private final BitbucketRequestExecutor bitbucketRequestExecutor;
     private final String projectKey;
     private final String repoSlug;
@@ -37,6 +40,7 @@ public class BitbucketDeploymentClientImpl implements BitbucketDeploymentClient 
                 .addPathSegment("deployments")
                 .build();
 
-        bitbucketRequestExecutor.makePostRequest(url, deployment, Headers.of());
+        bitbucketRequestExecutor.makePostRequest(url, deployment,
+                Headers.of(BBS_CICD_SOURCE_HEADER_KEY, BBS_CICD_SOURCE_HEADER_VALUE));
     }
 }
