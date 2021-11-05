@@ -3,6 +3,7 @@ package com.atlassian.bitbucket.jenkins.internal.client;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketCICapabilities;
 import com.atlassian.bitbucket.jenkins.internal.client.paging.BitbucketPageStreamUtil;
 import com.atlassian.bitbucket.jenkins.internal.client.paging.NextPageFetcher;
+import com.atlassian.bitbucket.jenkins.internal.model.BitbucketDefaultBranch;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketPage;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketPullRequest;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketPullRequestState;
@@ -84,6 +85,12 @@ public class BitbucketRepositoryClientImpl implements BitbucketRepositoryClient 
         return new BitbucketWebhookClientImpl(bitbucketRequestExecutor, projectKey, repositorySlug);
     }
 
+    @Override
+    public BitbucketDefaultBranch getDefaultBranch() {
+        return bitbucketRequestExecutor.makeGetRequest(getDefaultBranchyUrl().build(), BitbucketDefaultBranch.class)
+                .getBody();
+    }
+
     private Stream<BitbucketPullRequest> getBitbucketPullRequestStream(HttpUrl.Builder urlBuilder) {
         HttpUrl url = urlBuilder.build();
         BitbucketPage<BitbucketPullRequest> firstPage =
@@ -106,6 +113,11 @@ public class BitbucketRepositoryClientImpl implements BitbucketRepositoryClient 
                 .addPathSegment(projectKey)
                 .addPathSegment("repos")
                 .addPathSegment(repositorySlug);
+    }
+    
+    private HttpUrl.Builder getDefaultBranchyUrl() {
+        return getRepositoryUrl()
+                .addPathSegment("default-branch");
     }
 
     static class NextPageFetcherImpl implements NextPageFetcher<BitbucketPullRequest> {

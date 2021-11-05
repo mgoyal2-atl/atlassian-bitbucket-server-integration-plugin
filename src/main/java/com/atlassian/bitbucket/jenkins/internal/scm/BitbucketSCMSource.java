@@ -7,16 +7,22 @@ import com.atlassian.bitbucket.jenkins.internal.config.BitbucketServerConfigurat
 import com.atlassian.bitbucket.jenkins.internal.config.BitbucketTokenCredentials;
 import com.atlassian.bitbucket.jenkins.internal.credentials.GlobalCredentialsProvider;
 import com.atlassian.bitbucket.jenkins.internal.credentials.JenkinsToBitbucketCredentials;
+import com.atlassian.bitbucket.jenkins.internal.model.BitbucketDefaultBranch;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketNamedLink;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketProject;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRepository;
+import com.atlassian.bitbucket.jenkins.internal.status.BitbucketRepositoryMetadataAction;
 import com.atlassian.bitbucket.jenkins.internal.trigger.BitbucketWebhookMultibranchTrigger;
 import com.atlassian.bitbucket.jenkins.internal.trigger.RetryingWebhookHandler;
 import com.atlassian.bitbucket.jenkins.internal.trigger.events.AbstractWebhookEvent;
 import com.atlassian.bitbucket.jenkins.internal.trigger.register.WebhookRegistrationFailed;
 import com.cloudbees.hudson.plugins.folder.computed.ComputedFolder;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
+import hudson.model.Action;
+import hudson.model.Actionable;
 import hudson.model.Item;
 import hudson.model.TaskListener;
 import hudson.plugins.git.GitTool;
@@ -28,11 +34,14 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.plugins.git.GitSCMSource;
 import jenkins.scm.api.*;
+import jenkins.scm.api.metadata.PrimaryInstanceMetadataAction;
 import jenkins.scm.api.trait.SCMSourceTrait;
 import jenkins.scm.api.trait.SCMSourceTraitDescriptor;
 import jenkins.scm.impl.TagSCMHeadCategory;
 import jenkins.scm.impl.UncategorizedSCMHeadCategory;
 import jenkins.scm.impl.form.NamedArrayList;
+
+import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -151,6 +160,49 @@ public class BitbucketSCMSource extends SCMSource {
             LOGGER.fine("Building SCM for " + head.getName() + " at revision " + revision);
         }
         return getGitSCMSource().build(head, revision);
+    }
+    
+    @NonNull
+    @Override
+    protected List<Action> retrieveActions(SCMSourceEvent event,
+                                          @NonNull TaskListener listener) throws IOException, InterruptedException {
+        BitbucketSCMSource.DescriptorImpl descriptor = (BitbucketSCMSource.DescriptorImpl) getDescriptor();
+        Optional<BitbucketServerConfiguration> mayBeServerConf = descriptor.getConfiguration(getServerId());
+        if (!mayBeServerConf.isPresent()) {
+            LOGGER.info("No Bitbucket Server configuration for serverId " + getServerId());
+            return Collections.emptyList();
+        }
+        BitbucketServerConfiguration serverConfiguration = mayBeServerConf.get();
+        GlobalCredentialsProvider globalCredentialsProvider = serverConfiguration.getGlobalCredentialsProvider(
+                format("Bitbucket SCM: Query Bitbucket for project [%s] repo [%s] mirror[%s]",
+                        getProjectName(),
+                        getRepositoryName(),
+                        getMirrorName()));
+        BitbucketScmHelper scmHelper =
+                descriptor.getBitbucketScmHelper(serverConfiguration.getBaseUrl(),
+                        globalCredentialsProvider.getGlobalAdminCredentials().orElse(null));        
+        
+        BitbucketDefaultBranch defaultBranch = scmHelper.getDefaultBranch(repository.getProjectName(), repository.getRepositoryName());
+        return Collections.singletonList(new BitbucketRepositoryMetadataAction(repository, defaultBranch));
+    }
+
+    @NonNull
+    @Override
+    protected List<Action> retrieveActions(@NonNull SCMHead head, 
+                                           @CheckForNull SCMHeadEvent event,
+                                           @NonNull TaskListener listener) throws IOException, InterruptedException {       
+        List<Action> result = new ArrayList<>();
+        SCMSourceOwner owner = getOwner();
+        if (owner instanceof Actionable) {
+            ((Actionable) owner).getActions(BitbucketRepositoryMetadataAction.class).stream()
+                .filter(
+                        action -> action.getBitbucketSCMRepository().equals(repository) && 
+                        action.getBitbucketDefaultBranch() != null  && 
+                        StringUtils.equals(action.getBitbucketDefaultBranch().getDisplayId(), head.getName()))
+                .findAny()
+                .ifPresent(action -> result.add(new PrimaryInstanceMetadataAction()));
+        }
+        return result;
     }
 
     @Override

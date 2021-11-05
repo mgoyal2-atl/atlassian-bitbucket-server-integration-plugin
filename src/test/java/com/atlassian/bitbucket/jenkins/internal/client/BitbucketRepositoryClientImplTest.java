@@ -42,6 +42,7 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class BitbucketRepositoryClientImplTest {
 
+    private static final String DEFAULT_BRANCH_URL = "%s/rest/api/1.0/projects/%s/repos/%s/default-branch";
     private static final String PROJECT_KEY = "PROJECT_1";
     private static final String REPO_SLUG = "rep_1";
     private static final String REVISION = "bc891c29e289e373fbf8daff411480e8da6d5252";
@@ -119,7 +120,18 @@ public class BitbucketRepositoryClientImplTest {
 
         fetcher.next(page);
     }
+    
+    @Test
+    public void testFetchDefaultBranch() {
+        String response = readFileToString("/default-branch.json");
+        String url = format(DEFAULT_BRANCH_URL, BITBUCKET_BASE_URL, projectKey, repoSlug);
+        fakeRemoteHttpServer.mapUrlToResult(url, response);
 
+        BitbucketDefaultBranch defaultBranch = client.getDefaultBranch();
+
+        assertNotNull(defaultBranch);
+    }
+  
     @Test
     public void testPostBuildStatus() throws IOException {
         String postURL = "http://localhost:8080/jenkins/job/Local%20BBS%20Project/15/display/redirect";
