@@ -136,7 +136,7 @@ public class RetryingWebhookHandlerIT {
         JenkinsToBitbucketCredentials converter = mock(JenkinsToBitbucketCredentials.class);
         when(converter.toBitbucketCredentials(jenkinsAdminCredentials)).thenReturn(globalAdminCredentials);
         when(converter.toBitbucketCredentials(jenkinsGlobalCredentials)).thenReturn(globalCredentials);
-        when(converter.toBitbucketCredentials(JOB_CREDENTIAL_ID)).thenReturn(jobCredentials);
+        when(converter.toBitbucketCredentials(JOB_CREDENTIAL_ID, null)).thenReturn(jobCredentials);
 
         return new RetryingWebhookHandler(jp,
                 bitbucketClientFactoryProvider,

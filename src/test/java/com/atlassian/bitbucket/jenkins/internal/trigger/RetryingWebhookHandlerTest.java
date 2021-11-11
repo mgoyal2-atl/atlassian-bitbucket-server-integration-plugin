@@ -65,7 +65,7 @@ public class RetryingWebhookHandlerTest {
         when(jenkinsProvider.get()).thenReturn(jenkins);
         when(jenkins.getRootUrl()).thenReturn(BITBUCKET_BASE_URL);
 
-        when(jenkinsToBitbucketCredentials.toBitbucketCredentials(JOB_CREDENTIALS)).thenReturn(jobCredentials);
+        when(jenkinsToBitbucketCredentials.toBitbucketCredentials(JOB_CREDENTIALS, null)).thenReturn(jobCredentials);
 
         BitbucketTokenCredentials globalAdminJenkinsCredentials = mock(BitbucketTokenCredentials.class);
         globalCredentialsProvider = () -> Optional.of(globalAdminJenkinsCredentials);

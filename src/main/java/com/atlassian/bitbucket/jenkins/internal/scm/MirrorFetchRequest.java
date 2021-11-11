@@ -1,26 +1,26 @@
 package com.atlassian.bitbucket.jenkins.internal.scm;
 
-import com.atlassian.bitbucket.jenkins.internal.credentials.GlobalCredentialsProvider;
+import hudson.model.Item;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 
 public class MirrorFetchRequest {
 
     private final String bitbucketServerBaseUrl;
+    private final Item context;
     private final String credentialsId;
-    private final GlobalCredentialsProvider globalCredentialsProvider;
+    private final String existingMirrorSelection;
     private final String projectNameOrKey;
     private final String repoNameOrSlug;
-    private final String existingMirrorSelection;
-
     public MirrorFetchRequest(String bitbucketServerBaseUrl,
+                              @CheckForNull Item context,
                               @Nullable String credentialsId,
-                              GlobalCredentialsProvider globalCredentialsProvider,
                               String projectNameOrKey,
                               String repoNameOrSlug,
                               String existingMirrorSelection) {
         this.bitbucketServerBaseUrl = bitbucketServerBaseUrl;
-        this.globalCredentialsProvider = globalCredentialsProvider;
+        this.context = context;
         this.credentialsId = credentialsId;
         this.projectNameOrKey = projectNameOrKey;
         this.repoNameOrSlug = repoNameOrSlug;
@@ -31,8 +31,9 @@ public class MirrorFetchRequest {
         return bitbucketServerBaseUrl;
     }
 
-    public String getExistingMirrorSelection() {
-        return existingMirrorSelection;
+    @CheckForNull
+    public Item getContext() {
+        return context;
     }
 
     @Nullable
@@ -40,8 +41,8 @@ public class MirrorFetchRequest {
         return credentialsId;
     }
 
-    public GlobalCredentialsProvider getGlobalCredentialsProvider() {
-        return globalCredentialsProvider;
+    public String getExistingMirrorSelection() {
+        return existingMirrorSelection;
     }
 
     public String getProjectNameOrKey() {

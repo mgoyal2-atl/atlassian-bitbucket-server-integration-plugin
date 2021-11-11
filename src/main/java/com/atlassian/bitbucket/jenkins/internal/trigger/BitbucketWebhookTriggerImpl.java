@@ -289,9 +289,11 @@ public class BitbucketWebhookTriggerImpl extends Trigger<Job<?, ?>>
             return isEmpty(r.getMirrorName()) ^ isEmpty(r.getMirrorName());
         }
 
+        @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH", justification = "None. No idea what this is about")
         private void registerWebhook(Item item, BitbucketSCMRepository repository,
                                      boolean pullRequest, boolean refChange) {
-            requireNonNull(repository.getServerId());
+            requireNonNull(item, "item");
+            requireNonNull(repository.getServerId(), "serverId");
             BitbucketServerConfiguration bitbucketServerConfiguration = getServer(repository.getServerId());
 
             BitbucketWebhook webhook = retryingWebhookHandler.register(

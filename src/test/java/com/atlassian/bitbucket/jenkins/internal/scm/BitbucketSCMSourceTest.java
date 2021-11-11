@@ -65,7 +65,7 @@ public class BitbucketSCMSourceTest {
 
         verifyZeroInteractions(triggerDesc);
     }
-
+    
     @Test
     public void testAfterSaveRegistersWebhookIfNotAlreadyRegisteredWithNoTrigger() {
         String credentialsId = "valid-credentials";
@@ -77,6 +77,7 @@ public class BitbucketSCMSourceTest {
         doReturn(emptyMap()).when(owner).getTriggers();
         BitbucketSCMSource.DescriptorImpl descriptor = setupDescriptor(bitbucketSCMSource, serverId, baseUrl, owner);
         doReturn(true).when(bitbucketSCMSource).isValid();
+        doNothing().when(bitbucketSCMSource).initializeGitScmSource();
 
         bitbucketSCMSource.afterSave();
 
@@ -100,6 +101,7 @@ public class BitbucketSCMSourceTest {
         doReturn(singletonMap(triggerDesc, trigger)).when(owner).getTriggers();
         BitbucketSCMSource.DescriptorImpl descriptor = setupDescriptor(bitbucketSCMSource, serverId, baseUrl, owner);
         doReturn(true).when(bitbucketSCMSource).isValid();
+        doNothing().when(bitbucketSCMSource).initializeGitScmSource();
 
         bitbucketSCMSource.afterSave();
 
@@ -123,6 +125,7 @@ public class BitbucketSCMSourceTest {
         doReturn(singletonMap(triggerDesc, trigger)).when(owner).getTriggers();
         BitbucketSCMSource.DescriptorImpl descriptor = setupDescriptor(bitbucketSCMSource, serverId, baseUrl, owner);
         doReturn(true).when(bitbucketSCMSource).isValid();
+        doNothing().when(bitbucketSCMSource).initializeGitScmSource();
 
         bitbucketSCMSource.afterSave();
 
