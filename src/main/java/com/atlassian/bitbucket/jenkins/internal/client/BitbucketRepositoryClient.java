@@ -1,6 +1,9 @@
 package com.atlassian.bitbucket.jenkins.internal.client;
 
 import com.atlassian.bitbucket.jenkins.internal.client.exception.*;
+
+import com.atlassian.bitbucket.jenkins.internal.model.BitbucketDefaultBranch;
+import com.atlassian.bitbucket.jenkins.internal.model.BitbucketCICapabilities;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketPullRequest;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketPullRequestState;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRepository;
@@ -43,6 +46,25 @@ public interface BitbucketRepositoryClient {
     BitbucketWebhookClient getWebhookClient();
 
     /**
+     * Return a client that can post the current status of a build to Bitbucket.
+     *
+     * @param revisionSha      the revision for the build status
+     * @param ciCapabilities   CI capabilities of the remote server
+     * @return a client that can post a build status
+     * @since 3.1.0
+     */
+    BitbucketBuildStatusClient getBuildStatusClient(String revisionSha, BitbucketCICapabilities ciCapabilities);
+
+    /**
+     * Return a client that can post deployment information to Bitbucket.
+     *
+     * @param revisionSha      the revision for the deployment
+     * @return a client that can post deployment information
+     * @since 3.1.0
+     */
+    BitbucketDeploymentClient getDeploymentClient(String revisionSha);
+
+    /**
      * Gets all pull requests of the given state for the repository. The returned stream will make paged calls to
      * Bitbucket to ensure that all pull requests are returned. Consumers are advised that this can return large amounts
      * of data and are <strong>strongly</strong> encouraged to not collect to a list or similar before processing items,
@@ -64,4 +86,26 @@ public interface BitbucketRepositoryClient {
      * @since 3.0.0
      */
     Stream<BitbucketPullRequest> getPullRequests();
+    
+    /**
+     * Returns the default branch of a repository.
+     *
+     * @return the result of the call
+     * @throws AuthorizationException
+     *             if the credentials did not allow access to the given url
+     * @throws NoContentException
+     *             if the server did not respond with a body
+     * @throws ConnectionFailureException
+     *             if the server did not respond
+     * @throws NotFoundException
+     *             if the requested url does not exist
+     * @throws BadRequestException
+     *             if the request was malformed and thus rejected by the server
+     * @throws ServerErrorException
+     *             if the server failed to process the request
+     * @throws BitbucketClientException
+     *             for all errors not already captured
+     */
+    BitbucketDefaultBranch getDefaultBranch();
+    
 }

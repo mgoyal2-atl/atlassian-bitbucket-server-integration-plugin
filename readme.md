@@ -26,10 +26,10 @@ The plugin streamlines the entire configuration process and removes the need for
 
 ## Requirements
 
-- Jenkins 2.222.4+
+- Jenkins 2.289.1+
 - Bitbucket Server 7.4+
 
-Note: Bitbucket Server 5.6 to 7.3 are also supported, but they're not recommended. This is because some plugin features are not available when using these versions. Instead, we recommend using Bitbucket Server 7.4+. With 7.4+ you can set up an Application Link to have access to all plugin features.
+Note: Bitbucket Server 5.6 to 7.3 are also supported, but they're not recommended. This is because some plugin features are not available when using these versions. Instead, we recommend using Bitbucket Server 7.4+. With 7.0+ you can make use of pull request triggers for jobs. With 7.4+ you can set up an Application Link to have access to all plugin features.
 
 ## In this document
 1. [Install the plugin](#install-the-plugin)
@@ -140,7 +140,7 @@ Once you’ve added a Bitbucket Server instance to Jenkins, users will be able t
 To select a Bitbucket Server instance when creating a Freestyle job: 
 1. In Jenkins, go to **Jenkins** > **New item** and then follow the instructions to create a job.  
 2. Under **Source Code Management**, select **Bitbucket Server** and enter the details of the job.
-3. Under **Build Trigger**, select **Bitbucket Server Trigger build after push**.
+3. Under **Build Trigger**, select **Bitbucket webhook trigger**, and select either **All pushes** to build on every push, or **Pull request opened or source branch updated** to build whenever a pull request is opened, or a push is made to an open pull request.
 4. Under **Build**, add build steps. 
 5. Select **Save**.
 
@@ -150,7 +150,11 @@ To select a Bitbucket Server instance when creating a Freestyle job:
 
 To use a different Jenkinsfile for different branches of your Bitbucket Server project, you need to create a Multibranch Pipeline and add the Jenkinsfile to the repo of each branch you want to build. Jenkins will then automatically find, manage, and execute these Pipelines.
 
-Watch our [video](https://youtu.be/LY3zPgRr8no) to find out how to do this, or read more about [Multibranch Pipelines on Jenkins.io](https://jenkins.io/doc/book/pipeline/multibranch/#creating-a-multibranch-pipeline). 
+Watch our [video](https://youtu.be/LY3zPgRr8no) to find out how to do this, or read more about [Multibranch Pipelines on Jenkins.io](https://jenkins.io/doc/book/pipeline/multibranch/#creating-a-multibranch-pipeline).
+
+### Additional documentation
+
+* [Sending deployment notifications](./docs/deployment_notifications.md)
 
 ---
 
@@ -201,7 +205,7 @@ This will start Bitbucket Server on [http://localhost:7990/bitbucket](http://loc
 
 ### Running tests
 
-Unit tests are run with the Surefire plugin using `mvn verify`. They can be skipped using ``-DskipTests`.
+Unit tests are run with the Surefire plugin using `mvn verify`. They can be skipped using `-DskipTests`.
 
 Integration tests are run under the `it` profile with the Failsafe plugin using `mvn verify -Pit`. The tests will start Bitbucket Server on [http://localhost:7990/bitbucket](http://localhost:7990/bitbucket) and stop it after they are complete.
 
@@ -209,12 +213,33 @@ Integration tests are run under the `it` profile with the Failsafe plugin using 
 
 ## Changelog
 
-### 3.0.0 (XX XXX 2021)
-- The minimum version of Jenkins changed to be **2.204.4**
-- A number of dependencies upgrades
-- Fix for JENKINS-63071, we are now setting the repository browser also for multibranch projects. Existing projects will
-  need to be opened and saved again to fix this issue. New projects will work without any additional steps.
+### 3.2.0 (Unreleased)
+- The minimum version of Jenkins changed to be **2.289.1**
+
+### 3.1.0 (5 November 2021)
+- [Sending notifications to Bitbucket Data Center's deployment status API](./docs/deployment_notifications.md) are now
+  supported. For Freestyle jobs, this is implemented as a post-build action. For Pipeline and Multibranch Pipeline jobs,
+  this is implemented using the `bbs_deploy` wrapper step.
+- JENKINS-66690 added PrimaryInstanceMetadataAction to primary branch in multibranch pipeline jobs
+
+### 3.0.2 (19 October 2021)
+- The minimum version of Jenkins changed to be **2.249.1**
+- Fix issue JENKINS-66789 (incoming webhooks unexpectedly disabling pipeline branches)
+
+### 3.0.1 (8 October 2021)
+- Fix issue JENKINS-66802 (Builds failing with Jenkinsfiles longer than 500 lines)
+- OAuth consumer settings category set to Security
+
+### 3.0.0 (21 September 2021)
+- The minimum version of Jenkins changed to be **2.235.5**
 - JENKINS-60342 added support for Pull Request triggers
+- JENKINS-63033 added support for lightweight checkout with pipeline and multibranch pipeline jobs
+- JENKINS-63070 added multibranch project bitbucket links
+- Fix issue JENKINS-63071, we are now setting the repository browser also for multibranch projects. Existing projects will
+  need to be opened and saved again to fix this issue. New projects will work without any additional steps.
+- Fix issue JENKINS-65541 (use the folder credentials if they exist for multibranch scans)
+- A number of dependencies upgrades
+- Other small minor fixes & improvements
 
 ### 2.1.3 (19 February 2021)
 - Fix issue JENKINS-63009 (Jobs now work with folder credentials)
