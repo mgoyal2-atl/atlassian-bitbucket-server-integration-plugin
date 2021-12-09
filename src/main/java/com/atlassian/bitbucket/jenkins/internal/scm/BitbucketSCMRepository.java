@@ -77,8 +77,7 @@ public class BitbucketSCMRepository {
     }
 
     public boolean isValid() {
-        return isNotBlank(mirrorName) && 
-               isNotBlank(projectKey) && 
+        return isNotBlank(projectKey) && 
                isNotBlank(projectName) &&
                isNotBlank(repositoryName) && 
                isNotBlank(repositorySlug) && 

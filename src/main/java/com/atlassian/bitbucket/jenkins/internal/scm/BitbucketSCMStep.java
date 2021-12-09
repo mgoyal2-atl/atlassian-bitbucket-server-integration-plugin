@@ -110,6 +110,10 @@ public class BitbucketSCMStep extends SCMStep {
         return mirrorName;
     }
 
+    public String getProjectName() {
+        return projectName;
+    }
+    
     public String getRepositoryName() {
         return repositoryName;
     }

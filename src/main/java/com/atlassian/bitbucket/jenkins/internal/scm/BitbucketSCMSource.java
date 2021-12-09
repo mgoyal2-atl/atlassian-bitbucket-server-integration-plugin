@@ -6,6 +6,7 @@ import com.atlassian.bitbucket.jenkins.internal.config.BitbucketPluginConfigurat
 import com.atlassian.bitbucket.jenkins.internal.config.BitbucketServerConfiguration;
 import com.atlassian.bitbucket.jenkins.internal.credentials.CredentialUtils;
 import com.atlassian.bitbucket.jenkins.internal.credentials.JenkinsToBitbucketCredentials;
+import com.atlassian.bitbucket.jenkins.internal.model.BitbucketNamedLink;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRepository;
 import com.atlassian.bitbucket.jenkins.internal.status.BitbucketRepositoryMetadataAction;
 import com.atlassian.bitbucket.jenkins.internal.trigger.BitbucketWebhookMultibranchTrigger;
@@ -118,14 +119,8 @@ public class BitbucketSCMSource extends SCMSource {
             return Collections.emptyList();
         }
         BitbucketServerConfiguration serverConfiguration = mayBeServerConf.get();
-        GlobalCredentialsProvider globalCredentialsProvider = serverConfiguration.getGlobalCredentialsProvider(
-                format("Bitbucket SCM: Query Bitbucket for project [%s] repo [%s] mirror[%s]",
-                        getProjectName(),
-                        getRepositoryName(),
-                        getMirrorName()));
         BitbucketScmHelper scmHelper =
-                descriptor.getBitbucketScmHelper(serverConfiguration.getBaseUrl(),
-                        globalCredentialsProvider.getGlobalAdminCredentials().orElse(null));        
+                descriptor.getBitbucketScmHelper(serverConfiguration.getBaseUrl(), getCredentials().orElse(null));        
         
         scmHelper.getDefaultBranch(repository.getProjectName(), repository.getRepositoryName())
                 .ifPresent(defaultBranch -> result.add(new BitbucketRepositoryMetadataAction(repository, defaultBranch)));
@@ -184,12 +179,19 @@ public class BitbucketSCMSource extends SCMSource {
     }
 
     CustomGitSCMSource getGitSCMSource() {
+        if (gitSCMSource == null) {
+            initializeGitScmSource();
+        }
         return gitSCMSource;
     }
 
     @CheckForNull
     public String getCredentialsId() {
         return getBitbucketSCMRepository().getCredentialsId();
+    }
+
+    public Optional<Credentials> getCredentials() {
+        return CredentialUtils.getCredentials(getCredentialsId(), getOwner());
     }
 
     public String getMirrorName() {
@@ -276,8 +278,8 @@ public class BitbucketSCMSource extends SCMSource {
                             TaskListener listener) throws IOException, InterruptedException {
         if (event == null || isEventApplicable(event)) {
             if (!isValid()) {
-                // TODO: Find why it's invalid and fix it
-                listener.error("Config bad, build failed, fix");
+                listener.error("The BitbucketSCMSource has been incorrectly configured, and cannot perform a retrieve." +
+                               " Check the configuration before running this job again.");
                 return;
             }
             getGitSCMSource().accessibleRetrieve(criteria, observer, event, listener);
@@ -298,9 +300,8 @@ public class BitbucketSCMSource extends SCMSource {
         BitbucketServerConfiguration serverConfiguration = mayBeServerConf.get();
         String cloneUrl, selfLink;
 
-        Optional<Credentials> maybeCredentials = CredentialUtils.getCredentials(getCredentialsId(), getOwner());
         BitbucketScmHelper scmHelper = descriptor.getBitbucketScmHelper(serverConfiguration.getBaseUrl(),
-                maybeCredentials.orElse(null));
+                getCredentials().orElse(null));
 
         if (repository.isMirrorConfigured()) {
             EnrichedBitbucketMirroredRepository fetchedRepository = descriptor.createMirrorHandler(scmHelper)
@@ -316,14 +317,14 @@ public class BitbucketSCMSource extends SCMSource {
             repository = new BitbucketSCMRepository(getCredentialsId(), getSshCredentialsId(),
                     underlyingRepo.getProject().getName(), underlyingRepo.getProject().getKey(), underlyingRepo.getName(),
                     underlyingRepo.getSlug(), getServerId(), fetchedRepository.getMirroringDetails().getMirrorName());
-            cloneUrl = underlyingRepo.getCloneUrl(repository.getCloneProtocol()).map(Objects::toString).orElse("");
+            cloneUrl = underlyingRepo.getCloneUrl(repository.getCloneProtocol()).map(BitbucketNamedLink::getHref).orElse("");
             selfLink = fetchedRepository.getRepository().getSelfLink();
         } else {
             BitbucketRepository fetchedRepository = scmHelper.getRepository(getProjectName(), getRepositoryName());
             repository = new BitbucketSCMRepository(getCredentialsId(), getSshCredentialsId(),
                     fetchedRepository.getProject().getName(), fetchedRepository.getProject().getKey(),
                     fetchedRepository.getName(), fetchedRepository.getSlug(), getServerId(), "");
-            cloneUrl = fetchedRepository.getCloneUrl(repository.getCloneProtocol()).map(Objects::toString).orElse("");
+            cloneUrl = fetchedRepository.getCloneUrl(repository.getCloneProtocol()).map(BitbucketNamedLink::getHref).orElse("");
             selfLink = fetchedRepository.getSelfLink();
         }
         // Self link contains `/browse` which we must trim off.

@@ -6,6 +6,7 @@ import com.atlassian.bitbucket.jenkins.internal.config.BitbucketServerConfigurat
 import com.atlassian.bitbucket.jenkins.internal.credentials.CredentialUtils;
 import com.atlassian.bitbucket.jenkins.internal.credentials.JenkinsToBitbucketCredentials;
 import com.atlassian.bitbucket.jenkins.internal.credentials.JenkinsToBitbucketCredentialsModule;
+import com.atlassian.bitbucket.jenkins.internal.model.BitbucketNamedLink;
 import com.atlassian.bitbucket.jenkins.internal.model.BitbucketRepository;
 import com.cloudbees.plugins.credentials.Credentials;
 import com.google.inject.Guice;
@@ -20,7 +21,6 @@ import hudson.model.TaskListener;
 import hudson.plugins.git.BranchSpec;
 import hudson.plugins.git.GitSCM;
 import hudson.plugins.git.GitTool;
-import hudson.plugins.git.SubmoduleConfig;
 import hudson.plugins.git.UserRemoteConfig;
 import hudson.plugins.git.browser.Stash;
 import hudson.plugins.git.extensions.GitSCMExtension;
@@ -82,6 +82,27 @@ public class BitbucketSCM extends SCM {
                 credentialsId, sshCredentialsId, projectName, projectName, repositoryName, repositoryName, serverId, mirrorName));
     }
 
+    // This constructor is to be used when building an SCM in code but the GitSCM needs to be initialized as part of the
+    // construction, rather than automatically when performing a checkout or other git operation. This requires the user
+    // to provide a credential context, if one is available.
+    public BitbucketSCM(
+            @CheckForNull String id,
+            @CheckForNull List<BranchSpec> branches,
+            @CheckForNull String credentialsId,
+            @CheckForNull String sshCredentialsId,
+            @CheckForNull List<GitSCMExtension> extensions,
+            @CheckForNull String gitTool,
+            @CheckForNull String projectName,
+            @SuppressFBWarnings(value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE", justification = "We handle null values properly in a way that Findbugs misses")
+            @CheckForNull String repositoryName,
+            @CheckForNull String serverId,
+            @CheckForNull String mirrorName,
+            @CheckForNull Item context) {
+
+        this(id, branches, credentialsId, sshCredentialsId, extensions, gitTool, projectName, repositoryName, serverId, mirrorName);
+        initializeGitScm(context);
+    }
+
     public BitbucketSCM(
             @CheckForNull String id,
             @CheckForNull List<BranchSpec> branches,
@@ -137,6 +158,7 @@ public class BitbucketSCM extends SCM {
 
     @Override
     public void buildEnvironment(Run<?, ?> build, Map<String, String> env) {
+        initializeGitScmIfNull(build.getParent());
         gitSCM.buildEnvironment(build, env);
     }
 
@@ -148,9 +170,7 @@ public class BitbucketSCM extends SCM {
             @Nullable Launcher launcher,
             TaskListener listener)
             throws IOException, InterruptedException {
-        if (getGitSCM() == null) {
-            initializeGitScm(build.getParent());
-        }
+        initializeGitScmIfNull(build.getParent());
         return gitSCM.calcRevisionsFromBuild(build, workspace, launcher, listener);
     }
 
@@ -163,6 +183,7 @@ public class BitbucketSCM extends SCM {
             @CheckForNull File changelogFile,
             @CheckForNull SCMRevisionState baseline)
             throws IOException, InterruptedException {
+        initializeGitScmIfNull(build.getParent());
         gitSCM.checkout(build, launcher, workspace, listener, changelogFile, baseline);
     }
 
@@ -174,6 +195,7 @@ public class BitbucketSCM extends SCM {
             TaskListener listener,
             SCMRevisionState baseline)
             throws IOException, InterruptedException {
+        initializeGitScmIfNull(project);
         return gitSCM.compareRemoteRevisionWith(project, launcher, workspace, listener, baseline);
     }
 
@@ -184,7 +206,7 @@ public class BitbucketSCM extends SCM {
 
     public List<BranchSpec> getBranches() {
         if (gitSCM == null) {
-            return emptyList();
+            return branches;
         }
         return gitSCM.getBranches();
     }
@@ -211,6 +233,9 @@ public class BitbucketSCM extends SCM {
     }
 
     public List<GitSCMExtension> getExtensions() {
+        if (gitSCM == null) {
+            return emptyList();
+        }
         return gitSCM.getExtensions();
     }
 
@@ -248,13 +273,6 @@ public class BitbucketSCM extends SCM {
         return getBitbucketSCMRepository().getServerId();
     }
 
-    public Collection<SubmoduleConfig> getSubmoduleCfg() {
-        if (gitSCM == null) {
-            return emptyList();
-        }
-        return gitSCM.getSubmoduleCfg();
-    }
-
     public List<UserRemoteConfig> getUserRemoteConfigs() {
         if (gitSCM == null) {
             return emptyList();
@@ -272,6 +290,12 @@ public class BitbucketSCM extends SCM {
 
     public BitbucketSCMRepository getBitbucketSCMRepository() {
         return repositories.get(0);
+    }
+    
+    public void initializeGitScmIfNull(@Nullable Item context) {
+        if (gitSCM == null) {
+            initializeGitScm(context);
+        }
     }
 
     private void initializeGitScm(@Nullable Item context) {
@@ -303,7 +327,7 @@ public class BitbucketSCM extends SCM {
                     underlyingRepo.getProject().getName(), underlyingRepo.getProject().getKey(), underlyingRepo.getName(),
                     underlyingRepo.getSlug(), getServerId(), fetchedRepository.getMirroringDetails().getMirrorName()));
             cloneUrl = underlyingRepo.getCloneUrl(getBitbucketSCMRepository().getCloneProtocol())
-                    .map(Objects::toString).orElse("");
+                    .map(BitbucketNamedLink::getHref).orElse("");
             selfLink = fetchedRepository.getRepository().getSelfLink();
         } else {
             BitbucketRepository fetchedRepository = scmHelper.getRepository(getProjectName(), getRepositoryName());
@@ -311,7 +335,7 @@ public class BitbucketSCM extends SCM {
                     fetchedRepository.getProject().getName(), fetchedRepository.getProject().getKey(),
                     fetchedRepository.getName(), fetchedRepository.getSlug(), getServerId(), ""));
             cloneUrl = fetchedRepository.getCloneUrl(getBitbucketSCMRepository().getCloneProtocol())
-                    .map(Objects::toString).orElse("");
+                    .map(BitbucketNamedLink::getHref).orElse("");
             selfLink = fetchedRepository.getSelfLink();
         }
 
@@ -324,8 +348,7 @@ public class BitbucketSCM extends SCM {
         // Initialize the Git SCM
         UserRemoteConfig remoteConfig = new UserRemoteConfig(cloneUrl, getRepositorySlug(), null, 
                 getBitbucketSCMRepository().getCloneCredentialsId());
-        gitSCM = new GitSCM(singletonList(remoteConfig), branches, false, emptyList(), new Stash(selfLink),
-                gitTool, extensions);
+        gitSCM = new GitSCM(singletonList(remoteConfig), branches, new Stash(selfLink), gitTool, extensions);
     }
 
     @Symbol("BbS")
