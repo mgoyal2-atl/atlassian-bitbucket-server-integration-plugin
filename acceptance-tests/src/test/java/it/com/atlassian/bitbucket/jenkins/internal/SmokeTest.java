@@ -151,6 +151,7 @@ public class SmokeTest extends AbstractJUnitTest {
         folderCreds.setId(bbsAdminCredsId);
         folderCreds.username.set(BITBUCKET_ADMIN_USERNAME);
         folderCreds.password.set(BITBUCKET_ADMIN_PASSWORD);
+        folderCreds.description.set("Failing Creds");
         credentials.create();
 
         job = folder.getJobs().create();

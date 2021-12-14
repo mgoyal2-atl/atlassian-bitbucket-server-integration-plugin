@@ -78,7 +78,7 @@ public class BitbucketSCMStepIT {
         TestSCMStep scmStep = new TestSCMStep(id, singletonList(new BranchSpec("test-branch")),
                 credentialsId, "", PROJECT_NAME, REPO_NAME, serverId, "");
         TestSCM scm = scmStep.createSCM();
-        scm.initializeGitScmIfNull(null);
+        scm.getAndInitializeGitScmIfNull(null);
 
         assertThat(scmStep.getBranches(), hasSize(1));
         assertThat(scmStep.getBranches().get(0).getName(), equalTo("test-branch"));
@@ -122,7 +122,7 @@ public class BitbucketSCMStepIT {
         TestSCMStep scmStep = new TestSCMStep(id, singletonList(new BranchSpec("master")),
                 credentialsId, sshCredentialsId, PROJECT_NAME, REPO_NAME, serverId, "");
         TestSCM scm = scmStep.createSCM();
-        scm.initializeGitScmIfNull(null);
+        scm.getAndInitializeGitScmIfNull(null);
 
         assertThat(scmStep.getBranches(), hasSize(1));
         assertThat(scmStep.getBranches().get(0).getName(), equalTo("master"));

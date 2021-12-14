@@ -158,8 +158,8 @@ public class BitbucketSCM extends SCM {
 
     @Override
     public void buildEnvironment(Run<?, ?> build, Map<String, String> env) {
-        initializeGitScmIfNull(build.getParent());
-        gitSCM.buildEnvironment(build, env);
+        getAndInitializeGitScmIfNull(build.getParent())
+                .buildEnvironment(build, env);
     }
 
     @CheckForNull
@@ -170,8 +170,8 @@ public class BitbucketSCM extends SCM {
             @Nullable Launcher launcher,
             TaskListener listener)
             throws IOException, InterruptedException {
-        initializeGitScmIfNull(build.getParent());
-        return gitSCM.calcRevisionsFromBuild(build, workspace, launcher, listener);
+        return getAndInitializeGitScmIfNull(build.getParent())
+                .calcRevisionsFromBuild(build, workspace, launcher, listener);
     }
 
     @Override
@@ -183,8 +183,8 @@ public class BitbucketSCM extends SCM {
             @CheckForNull File changelogFile,
             @CheckForNull SCMRevisionState baseline)
             throws IOException, InterruptedException {
-        initializeGitScmIfNull(build.getParent());
-        gitSCM.checkout(build, launcher, workspace, listener, changelogFile, baseline);
+        getAndInitializeGitScmIfNull(build.getParent()) 
+                .checkout(build, launcher, workspace, listener, changelogFile, baseline);
     }
 
     @Override
@@ -195,8 +195,8 @@ public class BitbucketSCM extends SCM {
             TaskListener listener,
             SCMRevisionState baseline)
             throws IOException, InterruptedException {
-        initializeGitScmIfNull(project);
-        return gitSCM.compareRemoteRevisionWith(project, launcher, workspace, listener, baseline);
+        return getAndInitializeGitScmIfNull(project)
+                .compareRemoteRevisionWith(project, launcher, workspace, listener, baseline);
     }
 
     @Override
@@ -292,10 +292,11 @@ public class BitbucketSCM extends SCM {
         return repositories.get(0);
     }
     
-    public void initializeGitScmIfNull(@Nullable Item context) {
+    public GitSCM getAndInitializeGitScmIfNull(@Nullable Item context) {
         if (gitSCM == null) {
             initializeGitScm(context);
         }
+        return gitSCM;
     }
 
     private void initializeGitScm(@Nullable Item context) {
@@ -544,8 +545,12 @@ public class BitbucketSCM extends SCM {
             BitbucketSCM instance = (BitbucketSCM) super.newInstance(req, formData);
             
             if (req != null) {
-                Ancestor parent = req.getAncestors().get(req.getAncestors().size() - 1);
-                instance.initializeGitScm(parent instanceof Item ? (Item) parent : null);
+                if (!req.getAncestors().isEmpty()) {
+                    Ancestor parent = req.getAncestors().get(req.getAncestors().size() - 1);
+                    instance.initializeGitScm(parent.getObject() instanceof Item ? (Item) parent.getObject() : null);
+                } else {
+                    instance.initializeGitScm(null);
+                }
             }
             return instance;
         }
